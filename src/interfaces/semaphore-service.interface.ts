@@ -15,7 +15,6 @@ export interface ISemaphoreService {
   createGroup(dto: CreateGroupDto): Promise<{ groupId: bigint; result: TransactionResult }>;
   acceptGroupAdmin(groupId: bigint): Promise<TransactionResult>;
   updateGroupAdmin(groupId: bigint, newAdmin: Address): Promise<TransactionResult>;
-  updateGroupMerkleTreeDuration(groupId: bigint, newDuration: bigint): Promise<TransactionResult>;
   addMember(dto: AddMemberDto): Promise<TransactionResult>;
   addMembers(dto: AddMembersDto): Promise<TransactionResult>;
   removeMember(dto: RemoveMemberDto): Promise<TransactionResult>;
@@ -24,7 +23,6 @@ export interface ISemaphoreService {
   verifyProof(dto: VerifyProofDto): Promise<boolean>;
   getGroupInfo(groupId: bigint): Promise<GroupInfo>;
   hasMember(groupId: bigint, identityCommitment: bigint): Promise<boolean>;
-  indexOf(groupId: bigint, identityCommitment: bigint): Promise<bigint>;
   getGroupCounter(): Promise<bigint>;
   getVerifier(): Promise<Address>;
 }

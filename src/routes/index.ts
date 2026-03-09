@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { semaphoreRoutes } from "./semaphore.routes";
+import { eventRoutes } from "./event.routes";
 
 const app = new Hono();
 
@@ -9,7 +10,7 @@ app.get("/health", async (c) => {
     status: "ok",
     timestamp: new Date().toISOString(),
     di: "tsyringe-active",
-    features: ["semaphore-zk"],
+    features: ["semaphore-zk", "event-streaming"],
     contract: {
       type: "Semaphore",
       address: process.env.CONTRACT_ADDRESS,
@@ -19,5 +20,6 @@ app.get("/health", async (c) => {
 
 // API Routes
 app.route("/api/semaphore", semaphoreRoutes);
+app.route("/api/events", eventRoutes);
 
 export { app };

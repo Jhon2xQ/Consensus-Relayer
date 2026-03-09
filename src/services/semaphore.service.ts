@@ -4,7 +4,6 @@ import { TOKENS } from "../config/tokens";
 import type { ISemaphoreService } from "../interfaces/semaphore-service.interface";
 import type { IBlockchainService } from "../interfaces/blockchain-service.interface";
 import type {
-  SemaphoreProof,
   CreateGroupDto,
   AddMemberDto,
   AddMembersDto,
@@ -16,7 +15,6 @@ import type {
   TransactionResult,
 } from "../types/semaphore.types";
 import type { Address, Hash } from "viem";
-import { semaphoreAbi } from "../abi/semaphore.abi";
 import { HTTPException } from "hono/http-exception";
 
 @injectable()
@@ -63,12 +61,6 @@ export class SemaphoreService implements ISemaphoreService {
 
   async updateGroupAdmin(groupId: bigint, newAdmin: Address): Promise<TransactionResult> {
     const txHash = await this.blockchainService.writeContract("updateGroupAdmin", [groupId, newAdmin]);
-    const receipt = await this.blockchainService.waitForTransaction(txHash);
-    return this.mapReceiptToResult(receipt);
-  }
-
-  async updateGroupMerkleTreeDuration(groupId: bigint, newDuration: bigint): Promise<TransactionResult> {
-    const txHash = await this.blockchainService.writeContract("updateGroupMerkleTreeDuration", [groupId, newDuration]);
     const receipt = await this.blockchainService.waitForTransaction(txHash);
     return this.mapReceiptToResult(receipt);
   }
@@ -149,10 +141,6 @@ export class SemaphoreService implements ISemaphoreService {
 
   async hasMember(groupId: bigint, identityCommitment: bigint): Promise<boolean> {
     return this.blockchainService.readContract<boolean>("hasMember", [groupId, identityCommitment]);
-  }
-
-  async indexOf(groupId: bigint, identityCommitment: bigint): Promise<bigint> {
-    return this.blockchainService.readContract<bigint>("indexOf", [groupId, identityCommitment]);
   }
 
   async getGroupCounter(): Promise<bigint> {

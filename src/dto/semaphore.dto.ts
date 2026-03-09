@@ -3,7 +3,6 @@ import { z } from "zod";
 
 // Helper para validar bigints en strings (como vienen en JSON)
 const BigIntSchema = z.string().regex(/^\d+$/).transform(BigInt);
-const HexStringSchema = z.string().regex(/^0x[a-fA-F0-9]+$/);
 const AddressSchema = z.string().regex(/^0x[a-fA-F0-9]{40}$/);
 
 // Schema para SemaphoreProof
@@ -62,10 +61,6 @@ export const ValidateProofSchema = z.object({
 export const VerifyProofSchema = z.object({
   groupId: BigIntSchema,
   proof: SemaphoreProofSchema,
-});
-
-export const GroupQuerySchema = z.object({
-  groupId: BigIntSchema,
 });
 
 export const MemberQuerySchema = z.object({

@@ -1,0 +1,13 @@
+node_modules
+.git
+.gitignore
+.env
+.env.example
+*.md
+!README.md
+!API_DOCUMENTATION.md
+examples
+test-event-system.sh
+bun.lock
+.DS_Store
+*.log

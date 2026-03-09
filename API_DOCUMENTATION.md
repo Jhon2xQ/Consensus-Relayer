@@ -1,10 +1,24 @@
 # API Documentation - Semaphore Relayer
 
-Esta API permite interactuar con el contrato inteligente Semaphore, un protocolo de pruebas de conocimiento cero (zero-knowledge proofs) que permite a los usuarios demostrar su pertenencia a un grupo sin revelar su identidad específica. Los endpoints facilitan la gestión de grupos, miembros y la validación/verificación de pruebas criptográficas.
+Documentación completa de la API REST para el protocolo Semaphore con sistema de eventos en tiempo real.
 
-## Formato de Respuesta Estandarizado
+## Tabla de Contenidos
 
-Todas las respuestas de la API siguen este formato:
+1. [Formato de Respuesta](#formato-de-respuesta)
+2. [Endpoints de Grupos](#endpoints-de-grupos)
+3. [Endpoints de Miembros](#endpoints-de-miembros)
+4. [Endpoints de Pruebas ZK](#endpoints-de-pruebas-zk)
+5. [Sistema de Eventos en Tiempo Real](#sistema-de-eventos-en-tiempo-real)
+6. [Arquitectura](#arquitectura)
+7. [Ejemplos de Clientes](#ejemplos-de-clientes)
+8. [Ejemplos de Integración](#ejemplos-de-integración)
+9. [Manejo de Errores](#manejo-de-errores)
+
+---
+
+## Formato de Respuesta
+
+Todas las respuestas siguen este formato estandarizado:
 
 ```json
 {
@@ -15,31 +29,34 @@ Todas las respuestas de la API siguen este formato:
 }
 ```
 
-## Base URL
+## Base URLs
 
 ```
-http://localhost:3000/api/semaphore
+http://localhost:3000/api/semaphore  # Endpoints de Semaphore
+http://localhost:3000/api/events     # Endpoints de Eventos
 ```
 
 ---
 
-## Endpoints
+## Endpoints de Grupos
 
 ### 1. Crear Grupo
 
-**POST** `/groups`
+**POST** `/api/semaphore/groups`
 
-Crea un nuevo grupo Semaphore en el contrato inteligente. Un grupo es una colección de identidades que pueden generar pruebas de pertenencia.
+Crea un nuevo grupo Semaphore.
 
 **Body:**
+
 ```json
 {
-  "admin": "0x1234567890123456789012345678901234567890",  // Opcional
-  "merkleTreeDuration": "3600"  // Opcional, en segundos
+  "admin": "0x1234567890123456789012345678901234567890", // Opcional
+  "merkleTreeDuration": "3600" // Opcional, en segundos
 }
 ```
 
 **Respuesta:**
+
 ```json
 {
   "success": true,
@@ -59,15 +76,14 @@ Crea un nuevo grupo Semaphore en el contrato inteligente. Un grupo es una colecc
 }
 ```
 
----
-
 ### 2. Obtener Contador de Grupos
 
-**GET** `/groups/counter`
+**GET** `/api/semaphore/groups/counter`
 
-Obtiene el número total de grupos creados en el contrato. Útil para conocer cuántos grupos existen y cuál será el ID del próximo grupo.
+Obtiene el número total de grupos creados.
 
 **Respuesta:**
+
 ```json
 {
   "success": true,
@@ -80,18 +96,14 @@ Obtiene el número total de grupos creados en el contrato. Útil para conocer cu
 }
 ```
 
----
-
 ### 3. Obtener Información de Grupo
 
-**GET** `/groups/:groupId`
+**GET** `/api/semaphore/groups/:groupId`
 
-Obtiene toda la información de un grupo específico, incluyendo su administrador, configuración del árbol de Merkle y estado actual.
-
-**Parámetros:**
-- `groupId`: ID del grupo (en la URL)
+Obtiene información completa de un grupo.
 
 **Respuesta:**
+
 ```json
 {
   "success": true,
@@ -108,81 +120,38 @@ Obtiene toda la información de un grupo específico, incluyendo su administrado
 }
 ```
 
----
+### 4. Aceptar Administración
 
-### 4. Aceptar Administración de Grupo
+**POST** `/api/semaphore/groups/:groupId/accept-admin`
 
-**POST** `/groups/:groupId/accept-admin`
+Acepta la administración de un grupo transferido.
 
-Permite al nuevo administrador designado aceptar la administración del grupo. Se usa después de que el administrador actual transfiera la administración.
+### 5. Actualizar Administrador
 
-**Parámetros:**
-- `groupId`: ID del grupo (en la URL)
+**PUT** `/api/semaphore/groups/:groupId/admin`
 
-**Respuesta:**
-```json
-{
-  "success": true,
-  "message": "Group admin accepted",
-  "data": {
-    "groupId": "1",
-    "transaction": {
-      "txHash": "0xabc...",
-      "blockNumber": 12346,
-      "gasUsed": "100000",
-      "status": "success"
-    }
-  },
-  "timestamp": 1234567890
-}
-```
-
----
-
-### 5. Actualizar Administrador de Grupo
-
-**PUT** `/groups/:groupId/admin`
-
-Transfiere la administración del grupo a una nueva dirección. El nuevo administrador deberá aceptar la administración usando el endpoint anterior.
-
-**Parámetros:**
-- `groupId`: ID del grupo (en la URL)
+Transfiere la administración a una nueva dirección.
 
 **Body:**
+
 ```json
 {
   "newAdmin": "0x9876543210987654321098765432109876543210"
 }
 ```
 
-**Respuesta:**
-```json
-{
-  "success": true,
-  "message": "Group admin updated",
-  "data": {
-    "groupId": "1",
-    "newAdmin": "0x9876543210987654321098765432109876543210",
-    "transaction": {
-      "txHash": "0xdef...",
-      "blockNumber": 12347,
-      "gasUsed": "120000",
-      "status": "success"
-    }
-  },
-  "timestamp": 1234567890
-}
-```
-
 ---
+
+## Endpoints de Miembros
 
 ### 6. Agregar Miembro
 
-**POST** `/members`
+**POST** `/api/semaphore/members`
 
-Agrega un único miembro (identity commitment) a un grupo específico. Solo el administrador del grupo puede agregar miembros.
+Agrega un miembro a un grupo.
 
 **Body:**
+
 ```json
 {
   "groupId": "1",
@@ -190,160 +159,62 @@ Agrega un único miembro (identity commitment) a un grupo específico. Solo el a
 }
 ```
 
-**Respuesta:**
-```json
-{
-  "success": true,
-  "message": "Member added to group",
-  "data": {
-    "groupId": "1",
-    "identityCommitment": "123456789012345678901234567890",
-    "transaction": {
-      "hash": "0xghi...",
-      "blockNumber": 12348,
-      "gasUsed": "180000"
-    }
-  },
-  "timestamp": 1234567890
-}
-```
-
----
-
 ### 7. Agregar Múltiples Miembros
 
-**POST** `/members/batch`
+**POST** `/api/semaphore/members/batch`
 
-Agrega múltiples miembros a un grupo en una sola transacción. Más eficiente en gas que agregar miembros uno por uno.
+Agrega múltiples miembros en una transacción.
 
 **Body:**
+
 ```json
 {
   "groupId": "1",
-  "identityCommitments": [
-    "111111111111111111111111111111",
-    "222222222222222222222222222222",
-    "333333333333333333333333333333"
-  ]
+  "identityCommitments": ["111111111111111111111111111111", "222222222222222222222222222222"]
 }
 ```
-
-**Respuesta:**
-```json
-{
-  "success": true,
-  "message": "3 members added to group",
-  "data": {
-    "groupId": "1",
-    "count": 3,
-    "identityCommitments": [
-      "111111111111111111111111111111",
-      "222222222222222222222222222222",
-      "333333333333333333333333333333"
-    ],
-    "transaction": {
-      "hash": "0xjkl...",
-      "blockNumber": 12349,
-      "gasUsed": "350000"
-    }
-  },
-  "timestamp": 1234567890
-}
-```
-
----
 
 ### 8. Eliminar Miembro
 
-**DELETE** `/members`
+**DELETE** `/api/semaphore/members`
 
-Elimina un miembro de un grupo. Requiere proporcionar una prueba de Merkle para verificar que el miembro existe en el grupo.
+Elimina un miembro del grupo.
 
 **Body:**
+
 ```json
 {
   "groupId": "1",
   "identityCommitment": "123456789012345678901234567890",
-  "merkleProofSiblings": [
-    "111111111111111111111111111111",
-    "222222222222222222222222222222"
-  ]
+  "merkleProofSiblings": ["111111111111111111111111111111"]
 }
 ```
-
-**Respuesta:**
-```json
-{
-  "success": true,
-  "message": "Member removed from group",
-  "data": {
-    "groupId": "1",
-    "identityCommitment": "123456789012345678901234567890",
-    "transaction": {
-      "txHash": "0xmno...",
-      "blockNumber": 12350,
-      "gasUsed": "200000",
-      "status": "success"
-    }
-  },
-  "timestamp": 1234567890
-}
-```
-
----
 
 ### 9. Actualizar Miembro
 
-**PUT** `/members`
+**PUT** `/api/semaphore/members`
 
-Actualiza el identity commitment de un miembro existente. Útil para rotar identidades sin perder la pertenencia al grupo.
+Actualiza el identity commitment de un miembro.
 
 **Body:**
+
 ```json
 {
   "groupId": "1",
   "identityCommitment": "123456789012345678901234567890",
   "newIdentityCommitment": "999999999999999999999999999999",
-  "merkleProofSiblings": [
-    "111111111111111111111111111111",
-    "222222222222222222222222222222"
-  ]
+  "merkleProofSiblings": ["111111111111111111111111111111"]
 }
 ```
 
-**Respuesta:**
-```json
-{
-  "success": true,
-  "message": "Member updated",
-  "data": {
-    "groupId": "1",
-    "oldIdentityCommitment": "123456789012345678901234567890",
-    "newIdentityCommitment": "999999999999999999999999999999",
-    "transaction": {
-      "txHash": "0xpqr...",
-      "blockNumber": 12351,
-      "gasUsed": "220000",
-      "status": "success"
-    }
-  },
-  "timestamp": 1234567890
-}
-```
+### 10. Verificar Pertenencia
 
----
+**GET** `/api/semaphore/members/check?groupId=1&identityCommitment=123...`
 
-### 10. Verificar Pertenencia de Miembro
-
-**GET** `/members/check?groupId=1&identityCommitment=123456789012345678901234567890`
-
-Verifica si un identity commitment específico es miembro de un grupo. No requiere transacción, es una consulta de solo lectura.
-
-**Query Parameters:**
-- `groupId`: ID del grupo
-- `identityCommitment`: Identity commitment a verificar
+Verifica si un identity commitment es miembro de un grupo.
 
 **Respuesta:**
+
 ```json
 {
   "success": true,
@@ -359,13 +230,16 @@ Verifica si un identity commitment específico es miembro de un grupo. No requie
 
 ---
 
+## Endpoints de Pruebas ZK
+
 ### 11. Validar Prueba (On-chain)
 
-**POST** `/proofs/validate`
+**POST** `/api/semaphore/proofs/validate`
 
-Valida una prueba de conocimiento cero en la blockchain. Esto registra la prueba en el contrato y consume gas. Útil cuando necesitas un registro permanente de la validación.
+Valida una prueba ZK en blockchain. **Emite el evento ProofValidated**.
 
 **Body:**
+
 ```json
 {
   "groupId": "1",
@@ -390,6 +264,7 @@ Valida una prueba de conocimiento cero en la blockchain. Esto registra la prueba
 ```
 
 **Respuesta:**
+
 ```json
 {
   "success": true,
@@ -410,39 +285,16 @@ Valida una prueba de conocimiento cero en la blockchain. Esto registra la prueba
 }
 ```
 
----
-
 ### 12. Verificar Prueba (Off-chain)
 
-**POST** `/proofs/verify`
+**POST** `/api/semaphore/proofs/verify`
 
-Verifica una prueba de conocimiento cero sin registrarla en la blockchain. No consume gas, es una consulta de solo lectura. Útil para verificaciones rápidas.
+Verifica una prueba sin registrarla en blockchain (sin gas).
 
-**Body:**
-```json
-{
-  "groupId": "1",
-  "proof": {
-    "merkleTreeDepth": "20",
-    "merkleTreeRoot": "12345678901234567890",
-    "nullifier": "11111111111111111111111111111111",
-    "message": "22222222222222222222222222222222",
-    "scope": "33333333333333333333333333333333",
-    "points": [
-      "1111111111111111111111111111",
-      "2222222222222222222222222222",
-      "3333333333333333333333333333",
-      "4444444444444444444444444444",
-      "5555555555555555555555555555",
-      "6666666666666666666666666666",
-      "7777777777777777777777777777",
-      "8888888888888888888888888888"
-    ]
-  }
-}
-```
+**Body:** Igual que `validate`
 
 **Respuesta:**
+
 ```json
 {
   "success": true,
@@ -460,15 +312,14 @@ Verifica una prueba de conocimiento cero sin registrarla en la blockchain. No co
 }
 ```
 
----
+### 13. Obtener Verificador
 
-### 13. Obtener Dirección del Verificador
+**GET** `/api/semaphore/verifier`
 
-**GET** `/verifier`
-
-Obtiene la dirección del contrato verificador de pruebas ZK que utiliza el contrato Semaphore. Útil para verificar la configuración del sistema.
+Obtiene la dirección del contrato verificador ZK.
 
 **Respuesta:**
+
 ```json
 {
   "success": true,
@@ -482,18 +333,466 @@ Obtiene la dirección del contrato verificador de pruebas ZK que utiliza el cont
 
 ---
 
+## Sistema de Eventos en Tiempo Real
+
+### Descripción
+
+El servidor escucha automáticamente el evento `ProofValidated` del contrato Semaphore. Cuando se valida una prueba (voto), el evento se captura y transmite en tiempo real a todos los clientes conectados.
+
+### Evento ProofValidated
+
+Cuando se llama a `validateProof()` en el contrato, se emite:
+
+```solidity
+emit ProofValidated(
+  groupId,
+  proof.merkleTreeDepth,
+  proof.merkleTreeRoot,
+  proof.nullifier,
+  proof.message,
+  proof.scope,
+  proof.points
+);
+```
+
+### 14. Stream de Eventos (SSE)
+
+**GET** `/api/events/stream`
+
+Conexión persistente Server-Sent Events para recibir eventos en tiempo real.
+
+**Características:**
+
+- Múltiples clientes simultáneos
+- Heartbeat cada 30 segundos
+- Reconexión automática
+- Sin límite de tiempo
+
+**Uso:**
+
+```javascript
+const eventSource = new EventSource("http://localhost:3000/api/events/stream");
+
+eventSource.addEventListener("connected", (event) => {
+  console.log("✅ Conectado");
+});
+
+eventSource.addEventListener("ProofValidated", (event) => {
+  const data = JSON.parse(event.data);
+  console.log("🎉 Nuevo voto:", data.data);
+});
+
+eventSource.addEventListener("heartbeat", (event) => {
+  console.log("💓 Heartbeat");
+});
+```
+
+**Eventos Recibidos:**
+
+1. **connected** - Confirmación de conexión
+
+```json
+{
+  "type": "connected",
+  "message": "Connected to ProofValidated event stream",
+  "timestamp": 1234567890
+}
+```
+
+2. **ProofValidated** - Evento de prueba validada
+
+```json
+{
+  "type": "ProofValidated",
+  "data": {
+    "groupId": "1",
+    "merkleTreeDepth": "20",
+    "merkleTreeRoot": "12345678901234567890",
+    "nullifier": "11111111111111111111111111111111",
+    "message": "22222222222222222222222222222222",
+    "scope": "33333333333333333333333333333333",
+    "points": ["...", "...", "...", "...", "...", "...", "...", "..."],
+    "blockNumber": "12352",
+    "transactionHash": "0xabc123...",
+    "timestamp": 1234567890
+  }
+}
+```
+
+3. **heartbeat** - Mantiene conexión viva
+
+```json
+{
+  "timestamp": 1234567890
+}
+```
+
+### 15. Eventos Recientes
+
+**GET** `/api/events/recent?limit=10`
+
+Obtiene eventos recientes almacenados en memoria (últimos 100).
+
+**Query Parameters:**
+
+- `limit`: Número de eventos (default: 10, máximo: 100)
+
+**Respuesta:**
+
+```json
+{
+  "success": true,
+  "message": "Recent events retrieved successfully",
+  "data": {
+    "events": [
+      {
+        "groupId": "1",
+        "nullifier": "11111111111111111111111111111111",
+        "message": "22222222222222222222222222222222",
+        "transactionHash": "0xabc123...",
+        "timestamp": 1234567890
+      }
+    ],
+    "count": 1
+  },
+  "timestamp": 1234567890
+}
+```
+
+---
+
+## Arquitectura
+
+### Flujo de Eventos
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    BLOCKCHAIN (Optimism)                        │
+│                                                                 │
+│  Smart Contract: Semaphore                                      │
+│  ├─ validateProof() llamado                                     │
+│  └─ emit ProofValidated(groupId, depth, root, nullifier, ...)  │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         │ viem.watchContractEvent
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    RELAYER API (Bun + Hono)                     │
+│                                                                 │
+│  EventService (Singleton)                                       │
+│  ├─ Escucha eventos del contrato                               │
+│  ├─ Almacena últimos 100 eventos en memoria                    │
+│  └─ Notifica a todos los listeners suscritos                   │
+│                         │                                       │
+│                         ▼                                       │
+│  EventController                                                │
+│  ├─ GET /api/events/stream (SSE)                               │
+│  └─ GET /api/events/recent (Polling)                           │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         │ Server-Sent Events (SSE)
+                         │ o HTTP Polling
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    CLIENTES (Red Privada)                       │
+│                                                                 │
+│  ├─ Browser (JavaScript/HTML)                                  │
+│  ├─ Node.js/Bun (TypeScript)                                   │
+│  ├─ Python (sseclient-py)                                      │
+│  └─ Dashboards, Notificaciones, Bases de Datos, etc.          │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Componentes
+
+**EventService** (`src/services/event.service.ts`)
+
+- Escucha eventos del contrato usando `viem.watchContractEvent`
+- Mantiene lista de listeners suscritos
+- Almacena últimos 100 eventos en memoria
+- Broadcasting a todos los clientes conectados
+
+**EventController** (`src/controllers/event.controller.ts`)
+
+- Endpoint SSE para streaming en tiempo real
+- Endpoint HTTP para eventos recientes
+- Manejo de conexiones y desconexiones
+
+**Ventajas:**
+
+- Desacoplado: Los clientes no se conectan directamente a blockchain
+- Escalable: Múltiples clientes sin sobrecargar el RPC
+- Eficiente: Un solo listener sirve a todos los clientes
+- Simple: No requiere infraestructura adicional (Redis, RabbitMQ)
+
+---
+
+## Ejemplos de Clientes
+
+### Cliente Browser (JavaScript)
+
+```javascript
+const eventSource = new EventSource("http://localhost:3000/api/events/stream");
+
+eventSource.addEventListener("connected", (event) => {
+  console.log("✅ Conectado");
+});
+
+eventSource.addEventListener("ProofValidated", (event) => {
+  const data = JSON.parse(event.data);
+  console.log("🎉 Nuevo voto:", data.data);
+
+  // Procesar evento
+  const { groupId, nullifier, message, transactionHash } = data.data;
+});
+
+eventSource.onerror = (error) => {
+  console.error("❌ Error:", error);
+  eventSource.close();
+};
+```
+
+### Cliente Node.js/TypeScript
+
+```typescript
+import { EventSource } from "eventsource";
+
+const eventSource = new EventSource("http://localhost:3000/api/events/stream");
+
+eventSource.addEventListener("ProofValidated", (event) => {
+  const data = JSON.parse(event.data);
+  const { groupId, nullifier, message, transactionHash } = data.data;
+
+  console.log(`Vote in group ${groupId}: ${nullifier}`);
+});
+```
+
+### Cliente Python
+
+```python
+from sseclient import SSEClient
+import json
+
+url = "http://localhost:3000/api/events/stream"
+messages = SSEClient(url)
+
+for msg in messages:
+    if msg.event == "ProofValidated":
+        data = json.loads(msg.data)
+        print(f"Nuevo voto: {data['data']['nullifier']}")
+```
+
+### Cliente cURL (Testing)
+
+```bash
+curl -N http://localhost:3000/api/events/stream
+```
+
+### Cliente HTML Completo
+
+Ver archivo: `examples/event-listener-client.html`
+
+---
+
+## Ejemplos de Integración
+
+### 1. Dashboard React en Tiempo Real
+
+```tsx
+import { useEffect, useState } from "react";
+
+export function VoteDashboard() {
+  const [events, setEvents] = useState([]);
+  const [connected, setConnected] = useState(false);
+
+  useEffect(() => {
+    const eventSource = new EventSource("http://localhost:3000/api/events/stream");
+
+    eventSource.addEventListener("connected", () => setConnected(true));
+
+    eventSource.addEventListener("ProofValidated", (event) => {
+      const data = JSON.parse(event.data);
+      setEvents((prev) => [data.data, ...prev].slice(0, 50));
+    });
+
+    eventSource.onerror = () => {
+      setConnected(false);
+      eventSource.close();
+    };
+
+    return () => eventSource.close();
+  }, []);
+
+  return (
+    <div>
+      <h1>🗳️ Votos en Tiempo Real</h1>
+      <div>Estado: {connected ? "🟢 Conectado" : "🔴 Desconectado"}</div>
+      {events.map((event, i) => (
+        <div key={i}>
+          <p>Grupo: {event.groupId}</p>
+          <p>TX: {event.transactionHash}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+### 2. Guardar en Base de Datos
+
+```typescript
+import { EventSource } from "eventsource";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
+const eventSource = new EventSource("http://localhost:3000/api/events/stream");
+
+eventSource.addEventListener("ProofValidated", async (event) => {
+  const data = JSON.parse(event.data);
+
+  await prisma.vote.create({
+    data: {
+      groupId: BigInt(data.data.groupId),
+      nullifier: data.data.nullifier,
+      message: data.data.message,
+      transactionHash: data.data.transactionHash,
+      timestamp: new Date(data.data.timestamp),
+    },
+  });
+});
+```
+
+### 3. Webhook a Sistema Externo
+
+```typescript
+import { EventSource } from "eventsource";
+import axios from "axios";
+
+const eventSource = new EventSource("http://localhost:3000/api/events/stream");
+
+eventSource.addEventListener("ProofValidated", async (event) => {
+  const data = JSON.parse(event.data);
+
+  await axios.post("https://tu-sistema.com/webhook/vote", {
+    event: "proof_validated",
+    data: data.data,
+  });
+});
+```
+
+### 4. Discord Bot
+
+```typescript
+import { Client, GatewayIntentBits } from "discord.js";
+import { EventSource } from "eventsource";
+
+const discord = new Client({ intents: [GatewayIntentBits.Guilds] });
+const eventSource = new EventSource("http://localhost:3000/api/events/stream");
+
+eventSource.addEventListener("ProofValidated", async (event) => {
+  const data = JSON.parse(event.data);
+  const channel = discord.channels.cache.get("CHANNEL_ID");
+
+  if (channel?.isTextBased()) {
+    await channel.send({
+      embeds: [
+        {
+          title: "🗳️ Nuevo Voto Validado",
+          fields: [
+            { name: "Grupo", value: data.data.groupId },
+            { name: "TX", value: data.data.transactionHash },
+          ],
+          color: 0x00ff00,
+        },
+      ],
+    });
+  }
+});
+```
+
+### 5. Telegram Bot
+
+```typescript
+import TelegramBot from "node-telegram-bot-api";
+import { EventSource } from "eventsource";
+
+const bot = new TelegramBot(process.env.TELEGRAM_TOKEN!);
+const eventSource = new EventSource("http://localhost:3000/api/events/stream");
+
+eventSource.addEventListener("ProofValidated", async (event) => {
+  const data = JSON.parse(event.data);
+
+  await bot.sendMessage(CHAT_ID, `🗳️ Nuevo Voto\nGrupo: ${data.data.groupId}\nTX: ${data.data.transactionHash}`);
+});
+```
+
+### 6. Logging y Auditoría
+
+```typescript
+import { EventSource } from "eventsource";
+import fs from "fs/promises";
+
+const eventSource = new EventSource("http://localhost:3000/api/events/stream");
+
+eventSource.addEventListener("ProofValidated", async (event) => {
+  const logEntry = {
+    timestamp: new Date().toISOString(),
+    event: JSON.parse(event.data),
+  };
+
+  await fs.appendFile("votes.log", JSON.stringify(logEntry) + "\n");
+});
+```
+
+### 7. Estadísticas en Tiempo Real
+
+```typescript
+const stats = { totalVotes: 0, votesByGroup: new Map() };
+const eventSource = new EventSource("http://localhost:3000/api/events/stream");
+
+eventSource.addEventListener("ProofValidated", (event) => {
+  const data = JSON.parse(event.data);
+  stats.totalVotes++;
+  stats.votesByGroup.set(data.data.groupId, (stats.votesByGroup.get(data.data.groupId) || 0) + 1);
+  console.log("📊 Stats:", stats);
+});
+```
+
+### 8. Redis Pub/Sub (Escalabilidad)
+
+```typescript
+import { EventSource } from "eventsource";
+import Redis from "ioredis";
+
+const redis = new Redis();
+const eventSource = new EventSource("http://localhost:3000/api/events/stream");
+
+eventSource.addEventListener("ProofValidated", async (event) => {
+  const data = JSON.parse(event.data);
+  await redis.publish("semaphore:proof-validated", JSON.stringify(data.data));
+});
+
+// En otro servicio:
+const subscriber = new Redis();
+subscriber.subscribe("semaphore:proof-validated");
+subscriber.on("message", (channel, message) => {
+  const event = JSON.parse(message);
+  console.log("Received:", event);
+});
+```
+
+---
+
 ## Manejo de Errores
 
-Todas las respuestas de error siguen el mismo formato estandarizado:
+### Error de Validación (400)
 
-**Ejemplo de error de validación:**
 ```json
 {
   "success": false,
   "message": "Validation error",
   "data": {
     "details": {
-      "formErrors": [],
       "fieldErrors": {
         "groupId": ["Expected string, received number"]
       }
@@ -503,7 +802,8 @@ Todas las respuestas de error siguen el mismo formato estandarizado:
 }
 ```
 
-**Ejemplo de error HTTP:**
+### Error HTTP (4xx)
+
 ```json
 {
   "success": false,
@@ -513,7 +813,8 @@ Todas las respuestas de error siguen el mismo formato estandarizado:
 }
 ```
 
-**Ejemplo de error interno:**
+### Error Interno (500)
+
 ```json
 {
   "success": false,
@@ -525,9 +826,76 @@ Todas las respuestas de error siguen el mismo formato estandarizado:
 
 ---
 
+## Escenario de Prueba Completo
+
+### 1. Conectar al Stream
+
+```bash
+curl -N http://localhost:3000/api/events/stream
+```
+
+### 2. Crear Grupo
+
+```bash
+curl -X POST http://localhost:3000/api/semaphore/groups \
+  -H "Content-Type: application/json" \
+  -d '{"admin": "0xYourAddress"}' | jq .
+```
+
+### 3. Agregar Miembros
+
+```bash
+curl -X POST http://localhost:3000/api/semaphore/members/batch \
+  -H "Content-Type: application/json" \
+  -d '{
+    "groupId": "1",
+    "identityCommitments": ["123456789012345678901234567890"]
+  }' | jq .
+```
+
+### 4. Validar Prueba
+
+```bash
+curl -X POST http://localhost:3000/api/semaphore/proofs/validate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "groupId": "1",
+    "proof": {
+      "merkleTreeDepth": "20",
+      "merkleTreeRoot": "12345678901234567890",
+      "nullifier": "11111111111111111111111111111111",
+      "message": "22222222222222222222222222222222",
+      "scope": "33333333333333333333333333333333",
+      "points": ["1111...", "2222...", "3333...", "4444...", "5555...", "6666...", "7777...", "8888..."]
+    }
+  }' | jq .
+```
+
+### 5. Observar Evento
+
+En la terminal del paso 1, verás el evento `ProofValidated` inmediatamente.
+
+---
+
 ## Notas Importantes
 
-1. Todos los valores numéricos grandes (BigInt) se envían y reciben como strings para evitar pérdida de precisión.
-2. Las direcciones Ethereum deben estar en formato hexadecimal con prefijo `0x` y 40 caracteres.
-3. Los endpoints que modifican el estado de la blockchain requieren que el relayer tenga fondos suficientes para pagar el gas.
-4. El timestamp en las respuestas está en milisegundos desde epoch Unix.
+1. Todos los valores numéricos grandes (BigInt) se envían y reciben como strings
+2. Las direcciones Ethereum deben estar en formato `0x` + 40 caracteres hex
+3. Los endpoints de escritura requieren fondos para gas
+4. El timestamp está en milisegundos desde epoch Unix
+5. El servidor escucha automáticamente eventos al iniciar
+6. Múltiples clientes pueden conectarse simultáneamente
+7. Los últimos 100 eventos se mantienen en memoria
+8. SSE es ideal para comunicación unidireccional servidor → cliente
+
+---
+
+## Casos de Uso
+
+- Dashboard de votación en tiempo real
+- Notificaciones push cuando se registra un voto
+- Auditoría y logging de todas las validaciones
+- Integración con sistemas externos (Discord, Telegram, webhooks)
+- Analytics y estadísticas en vivo
+- Sincronización con bases de datos
+- Sistemas de alertas y monitoreo

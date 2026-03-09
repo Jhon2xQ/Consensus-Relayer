@@ -1,6 +1,6 @@
 import { createPublicClient, createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { mainnet, optimism, optimismSepolia } from "viem/chains";
+import { optimism, optimismSepolia } from "viem/chains";
 import { env } from "./env";
 
 const getChain = () => {
@@ -26,10 +26,3 @@ export const walletClient = createWalletClient({
   chain,
   transport: http(env.RPC_URL),
 });
-
-export const blockchainConfig = {
-  chain,
-  account,
-  contractAddress: env.CONTRACT_ADDRESS as `0x${string}`,
-  rpcUrl: env.RPC_URL,
-};

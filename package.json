@@ -1,7 +1,17 @@
 {
-  "name": "Relayer",
+  "name": "semaphore-relayer",
+  "version": "1.0.0",
+  "description": "Semaphore ZK Relayer API with real-time event streaming",
   "scripts": {
-    "dev": "bun run --hot src/index.ts"
+    "dev": "bun run --hot src/index.ts",
+    "start": "NODE_ENV=production bun run src/index.ts",
+    "docker:build": "docker build -t semaphore-relayer .",
+    "docker:run": "docker run -d -p 3000:3000 --env-file .env --name semaphore-relayer semaphore-relayer",
+    "docker:stop": "docker stop semaphore-relayer && docker rm semaphore-relayer",
+    "docker:logs": "docker logs -f semaphore-relayer",
+    "compose:up": "docker-compose up -d",
+    "compose:down": "docker-compose down",
+    "compose:logs": "docker-compose logs -f"
   },
   "dependencies": {
     "hono": "^4.11.10",

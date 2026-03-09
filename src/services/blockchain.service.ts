@@ -36,12 +36,4 @@ export class BlockchainService implements IBlockchainService {
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
     return receipt;
   }
-
-  async getBalance(address: Address = account.address): Promise<bigint> {
-    return publicClient.getBalance({ address });
-  }
-
-  async getBlockNumber(): Promise<bigint> {
-    return publicClient.getBlockNumber();
-  }
 }

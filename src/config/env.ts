@@ -6,7 +6,6 @@ const envSchema = z.object({
   RPC_URL: z.string().url().min(1),
   PRIVATE_KEY: z.string().regex(/^0x[a-fA-F0-9]{64}$/, "Invalid private key format"),
   CONTRACT_ADDRESS: z.string().regex(/^0x[a-fA-F0-9]{40}$/, "Invalid contract address"),
-  CHAIN_ID: z.string().optional(),
 });
 
 export const env = envSchema.parse(process.env);
