@@ -8,6 +8,5 @@ node_modules
 !API_DOCUMENTATION.md
 examples
 test-event-system.sh
-bun.lock
 .DS_Store
 *.log
