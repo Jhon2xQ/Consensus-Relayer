@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { semaphoreRoutes } from "./semaphore.routes";
-import { env } from "../common/configs/env.config";
+import { env } from "../configs/env.config";
 
 const app = new Hono();
 

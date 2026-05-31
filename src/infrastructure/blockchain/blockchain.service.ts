@@ -1,7 +1,7 @@
 import type { IBlockchainService } from "../../domain/interfaces/blockchain-service.interface";
-import { publicClient, walletClient, account } from "../../common/configs/blockchain.config";
-import { semaphoreAbi } from "../../common/configs/semaphore.abi";
-import { env } from "../../common/configs/env.config";
+import { publicClient, walletClient, account } from "../../configs/blockchain.config";
+import { semaphoreAbi } from "../../configs/semaphore.abi";
+import { env } from "../../configs/env.config";
 import type { Hash, TransactionReceipt } from "viem";
 
 export class BlockchainService implements IBlockchainService {

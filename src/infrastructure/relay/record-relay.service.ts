@@ -1,5 +1,5 @@
 import type { IRecordRelayService, RecordPayload } from "../../domain/interfaces/record-relay.interface";
-import { env } from "../../common/configs/env.config";
+import { env } from "../../configs/env.config";
 
 export class RecordRelayService implements IRecordRelayService {
   async send(payload: RecordPayload): Promise<void> {
@@ -17,11 +17,7 @@ export class RecordRelayService implements IRecordRelayService {
     });
 
     if (!response.ok) {
-      console.error(
-        "❌ Record relay failed:",
-        response.status,
-        await response.text().catch(() => ""),
-      );
+      console.error("❌ Record relay failed:", response.status, await response.text().catch(() => ""));
       return;
     }
 

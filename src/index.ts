@@ -2,8 +2,8 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { app } from "./routes";
 import { errorHandler } from "./presentation/middlewares/error-handler";
-import { corsConfig } from "./common/configs/cors.config";
-import { env } from "./common/configs/env.config";
+import { corsConfig } from "./configs/cors.config";
+import { env } from "./configs/env.config";
 
 // CORS
 app.use("*", cors(corsConfig));
