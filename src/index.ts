@@ -1,4 +1,3 @@
-import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { app } from "./routes";
 import { errorHandler } from "./presentation/middlewares/error-handler";
@@ -16,12 +15,7 @@ app.notFound((c) => {
   return c.json({ success: false, error: "Not Found" }, 404);
 });
 
-const port = env.PORT || "3000";
-
-console.log(`
-🚀 Server running at http://localhost:${port}
-🔧 Contract: Semaphore ZK
-`);
+const port = env.PORT;
 
 export default {
   port,
