@@ -14,6 +14,5 @@ COPY --from=deps --chown=bunuser:bunuser /app/node_modules ./node_modules
 COPY --chown=bunuser:bunuser . .
 
 USER bunuser
-EXPOSE 3000
 
 CMD ["bun", "run", "src/index.ts"]
