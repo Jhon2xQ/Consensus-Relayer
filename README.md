@@ -1,83 +1,94 @@
 # Semaphore Relayer API
 
-API REST para interactuar con el protocolo Semaphore (Zero-Knowledge Proofs) en Optimism, con sistema de escucha y broadcasting de eventos en tiempo real.
+API REST para interactuar con el protocolo Semaphore (Zero-Knowledge Proofs) en Optimism. Actúa como relayer firmando transacciones on-chain con una wallet configurada.
 
-## Descripción
+## Stack
 
-Este relayer actúa como intermediario entre aplicaciones cliente y el contrato inteligente Semaphore desplegado en Optimism. Proporciona:
+- **Runtime**: Bun
+- **Framework**: Hono
+- **Blockchain**: viem (Optimism / Optimism Sepolia)
+- **Validación**: Zod
+- **Arquitectura**: Hexagonal (Clean Architecture)
 
-- API REST para gestionar grupos, miembros y validación de pruebas ZK
-- Sistema de eventos en tiempo real que captura y transmite validaciones de pruebas
-- Broadcasting vía Server-Sent Events (SSE) a múltiples clientes simultáneos
-
-## Instalación
-
-### Desarrollo
-
-#### Requisitos
-
-- Bun >= 1.0.0
-- Cuenta con fondos en Optimism (Mainnet o Sepolia)
-- Contrato Semaphore desplegado
-
-#### Pasos
-
-1. Clonar e instalar:
+## Arranque rápido
 
 ```bash
-git clone <repo-url>
-cd Consensus-Relayer
 bun install
-```
-
-2. Configurar variables de entorno:
-
-```bash
 cp .env.example .env
-```
-
-Editar `.env`:
-
-```env
-PORT=3000
-NODE_ENV=development
-RPC_URL=https://opt-sepolia.g.alchemy.com/v2/TU_API_KEY
-PRIVATE_KEY=0x...
-CONTRACT_ADDRESS=0x8A1fd199516489B0Fb7153EB5f075cDAC83c693D
-```
-
-4. Ejecutar:
-
-```bash
+# editar .env con tus valores
 bun run dev
 ```
 
-Servidor disponible en `http://localhost:3000`
+## Variables de entorno
 
-### Producción
+| Variable | Requerida | Descripción |
+|----------|-----------|-------------|
+| `RPC_URL` | ✅ | URL del RPC (Alchemy/Infura) |
+| `PRIVATE_KEY` | ✅ | Wallet que firma tx (`0x...` 64 hex) |
+| `CONTRACT_ADDRESS` | ✅ | Dirección del contrato Semaphore (`0x...` 40 hex) |
+| `PORT` | ❌ | Puerto (default: 3000) |
+| `NODE_ENV` | ❌ | `development` → Sepolia, `production` → Mainnet |
+| `RECORD_ENDPOINT` | ❌ | URL para relay de proofs validados |
 
-#### Docker Compose (Recomendado)
+## Endpoints
 
-```nginx
-server {
-    listen 443 ssl http2;
-    server_name api.tudominio.com;
+### Semaphore Groups
+```
+POST   /api/semaphore/groups                     Crear grupo
+GET    /api/semaphore/groups/counter             Contador de grupos
+GET    /api/semaphore/groups/:groupId            Info del grupo
+POST   /api/semaphore/groups/:groupId/accept-admin  Aceptar admin
+PUT    /api/semaphore/groups/:groupId/admin      Actualizar admin
+```
 
-    ssl_certificate /path/to/cert.pem;
-    ssl_certificate_key /path/to/key.pem;
+### Members
+```
+POST   /api/semaphore/members                    Agregar miembro
+POST   /api/semaphore/members/batch              Agregar múltiples
+DELETE /api/semaphore/members                    Remover miembro
+PUT    /api/semaphore/members                    Actualizar miembro
+GET    /api/semaphore/members/check              Verificar miembro
+```
 
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
+### Proofs
+```
+POST   /api/semaphore/proofs/validate            Validar proof on-chain + relay
+POST   /api/semaphore/proofs/verify              Verificar proof (read-only)
+```
 
-        # Para SSE
-        proxy_buffering off;
-        proxy_cache off;
-        proxy_read_timeout 86400s;
-    }
+### Utilidades
+```
+GET    /api/semaphore/verifier                   Dirección del verifier
+GET    /health                                   Health check
+```
+
+## Relay de records
+
+Si se configura `RECORD_ENDPOINT`, cada `validateProof` exitoso envía un POST al endpoint con:
+
+```json
+{
+  "groupId": "...",
+  "nullifier": "...",
+  "message": "...",
+  "scope": "...",
+  "transactionHash": "0x..."
 }
 ```
+
+Endpoint idempotente por `nullifier`. El relay es *fire & forget*: si falla no afecta la respuesta del relayer.
+
+## Arquitectura
+
+```
+src/
+├── domain/            Entidades, interfaces (puertos), excepciones
+├── application/       Use-cases (uno por acción), DTOs
+├── infrastructure/    BlockchainService, RecordRelayService
+├── presentation/      Controller, schemas Zod, middlewares
+├── common/            Config (env, blockchain, ABI), tipos compartidos
+├── routes/            Definición de rutas con wiring manual
+└── index.ts           Entrypoint
+```
+
+Sin DI containers, sin decoradores, sin `reflect-metadata`. Wiring manual por constructor.

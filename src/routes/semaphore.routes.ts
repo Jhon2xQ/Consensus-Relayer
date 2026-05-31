@@ -1,30 +1,66 @@
-// src/routes/semaphore.routes.ts
 import { Hono } from "hono";
-import { container } from "../config/container";
-import { SemaphoreController } from "../controllers/semaphore.controller";
+import { BlockchainService } from "../infrastructure/blockchain/blockchain.service";
+import { RecordRelayService } from "../infrastructure/relay/record-relay.service";
+import {
+  CreateGroupUseCase,
+  AddMemberUseCase,
+  AddMembersUseCase,
+  RemoveMemberUseCase,
+  UpdateMemberUseCase,
+  AcceptGroupAdminUseCase,
+  UpdateGroupAdminUseCase,
+  ValidateProofUseCase,
+  VerifyProofUseCase,
+  GetGroupInfoUseCase,
+  GetGroupCounterUseCase,
+  GetVerifierUseCase,
+  HasMemberUseCase,
+} from "../application/use-cases";
+import type { SemaphoreUseCases } from "../application/use-cases";
+import { SemaphoreController } from "../presentation/controllers/semaphore.controller";
 
+// ── Infrastructure ──
+const blockchain = new BlockchainService();
+const recordRelay = new RecordRelayService();
+
+// ── Application ──
+const useCases: SemaphoreUseCases = {
+  createGroup: new CreateGroupUseCase(blockchain),
+  addMember: new AddMemberUseCase(blockchain),
+  addMembers: new AddMembersUseCase(blockchain),
+  removeMember: new RemoveMemberUseCase(blockchain),
+  updateMember: new UpdateMemberUseCase(blockchain),
+  acceptGroupAdmin: new AcceptGroupAdminUseCase(blockchain),
+  updateGroupAdmin: new UpdateGroupAdminUseCase(blockchain),
+  validateProof: new ValidateProofUseCase(blockchain, recordRelay),
+  verifyProof: new VerifyProofUseCase(blockchain),
+  getGroupInfo: new GetGroupInfoUseCase(blockchain),
+  getGroupCounter: new GetGroupCounterUseCase(blockchain),
+  getVerifier: new GetVerifierUseCase(blockchain),
+  hasMember: new HasMemberUseCase(blockchain),
+};
+
+// ── Presentation ──
+const controller = new SemaphoreController(useCases);
+
+// ── Routes ──
 const semaphoreRoutes = new Hono();
-const controller = container.resolve(SemaphoreController);
 
-// Grupos
 semaphoreRoutes.post("/groups", controller.createGroup);
 semaphoreRoutes.get("/groups/counter", controller.getGroupCounter);
 semaphoreRoutes.get("/groups/:groupId", controller.getGroupInfo);
 semaphoreRoutes.post("/groups/:groupId/accept-admin", controller.acceptGroupAdmin);
 semaphoreRoutes.put("/groups/:groupId/admin", controller.updateGroupAdmin);
 
-// Miembros
 semaphoreRoutes.post("/members", controller.addMember);
 semaphoreRoutes.post("/members/batch", controller.addMembers);
 semaphoreRoutes.delete("/members", controller.removeMember);
 semaphoreRoutes.put("/members", controller.updateMember);
 semaphoreRoutes.get("/members/check", controller.hasMember);
 
-// Pruebas ZK
 semaphoreRoutes.post("/proofs/validate", controller.validateProof);
 semaphoreRoutes.post("/proofs/verify", controller.verifyProof);
 
-// Utilidades
 semaphoreRoutes.get("/verifier", controller.getVerifier);
 
 export { semaphoreRoutes };

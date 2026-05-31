@@ -1,11 +1,7 @@
-import "reflect-metadata";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { app } from "./routes";
-import { errorHandler } from "./middleware/error-handler";
-import { container } from "./config/container";
-import { TOKENS } from "./config/tokens";
-import type { IEventService } from "./interfaces/event-service.interface";
+import { errorHandler } from "./presentation/middlewares/error-handler";
 
 // CORS
 app.use(
@@ -17,7 +13,7 @@ app.use(
   }),
 );
 
-// Error handler global
+// Error handler
 app.onError(errorHandler);
 
 // Not Found
@@ -27,17 +23,9 @@ app.notFound((c) => {
 
 const port = process.env.PORT || 3000;
 
-// Start event listener
-const eventService = container.resolve<IEventService>(TOKENS.EventService);
-eventService.startListening().catch((error) => {
-  console.error("❌ Failed to start event listener:", error);
-});
-
 console.log(`
 🚀 Server running at http://localhost:${port}
-📦 Dependency Injection: tsyringe active
 🔧 Contract: Semaphore ZK
-🎧 Event Listener: ProofValidated active
 `);
 
 export default {
