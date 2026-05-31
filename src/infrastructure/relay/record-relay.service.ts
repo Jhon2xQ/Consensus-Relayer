@@ -1,5 +1,4 @@
-import type { IRecordRelayService } from "../../domain/interfaces/record-relay.interface";
-import type { RecordPayload } from "../../common/types/record.types";
+import type { IRecordRelayService, RecordPayload } from "../../domain/interfaces/record-relay.interface";
 import { env } from "../../common/configs/env.config";
 
 export class RecordRelayService implements IRecordRelayService {
