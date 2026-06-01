@@ -6,7 +6,7 @@ services:
     container_name: semaphore-relayer
     restart: unless-stopped
     ports:
-      - "${PORT}:${PORT}"
+      - "${PORT}"
     environment:
       - NODE_ENV=${NODE_ENV}
       - PORT=${PORT}
