@@ -6,7 +6,7 @@ import {
   MemberQuerySchema,
   UpdateMerkleTreeDurationSchema,
   IndexOfQuerySchema,
-} from "./semaphore.schema";
+} from "../../../src/presentation/schemas/semaphore.schema";
 
 describe("BigIntSchema (T4)", () => {
   it("transforms a numeric string to a bigint", () => {

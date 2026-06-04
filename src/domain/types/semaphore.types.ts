@@ -18,8 +18,17 @@ export interface GroupInfo {
   merkleTreeSize: bigint;
 }
 
+export interface GroupInfoResult {
+  id: bigint;
+  admin: Address;
+  merkleTreeDuration: bigint | null;
+  merkleTreeDepth: bigint | null;
+  merkleTreeRoot: bigint | null;
+  merkleTreeSize: bigint | null;
+}
+
 export interface TransactionResult {
-  txHash: `0x${string}`;
+  hash: `0x${string}`;
   blockNumber: bigint;
   gasUsed: bigint;
   status: "success" | "reverted";

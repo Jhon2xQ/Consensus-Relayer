@@ -2,7 +2,7 @@ import type { IBlockchainService } from "../../domain/interfaces/blockchain-serv
 import { publicClient, walletClient, account } from "../../configs/blockchain.config";
 import { semaphoreAbi } from "../../configs/semaphore.abi";
 import { env } from "../../configs/env.config";
-import type { Hash, TransactionReceipt } from "viem";
+import type { Address, Hash, TransactionReceipt } from "viem";
 
 export class BlockchainService implements IBlockchainService {
   private get contractAddress(): `0x${string}` {
@@ -51,5 +51,9 @@ export class BlockchainService implements IBlockchainService {
 
   async waitForTransaction(hash: Hash): Promise<TransactionReceipt> {
     return publicClient.waitForTransactionReceipt({ hash });
+  }
+
+  getAccountAddress(): Address {
+    return account.address;
   }
 }

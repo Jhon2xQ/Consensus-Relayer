@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, spyOn } from "bun:test";
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z, ZodError } from "zod";
-import { errorHandler } from "./error-handler";
-import { DomainException } from "../../domain/exceptions/domain.exception";
+import { errorHandler } from "../../../src/presentation/middlewares/error-handler";
+import { DomainException } from "../../../src/domain/exceptions/domain.exception";
 
 type CapturedCall = { data: unknown; status: number };
 

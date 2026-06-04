@@ -1,4 +1,4 @@
-import type { Hash, TransactionReceipt } from "viem";
+import type { Address, Hash, TransactionReceipt } from "viem";
 
 export interface IBlockchainService {
   readContract<T>(functionName: string, args?: unknown[]): Promise<T>;
@@ -9,4 +9,5 @@ export interface IBlockchainService {
     value?: bigint,
   ): Promise<{ hash: Hash; result: T }>;
   waitForTransaction(hash: Hash): Promise<TransactionReceipt>;
+  getAccountAddress(): Address;
 }

@@ -13,6 +13,9 @@ export class RemoveMemberUseCase {
       dto.merkleProofSiblings,
     ]);
     const receipt = await this.blockchain.waitForTransaction(txHash);
+    if (receipt.status !== "success") {
+      throw new Error("removeMember transaction reverted");
+    }
     return mapReceiptToResult(receipt);
   }
 }

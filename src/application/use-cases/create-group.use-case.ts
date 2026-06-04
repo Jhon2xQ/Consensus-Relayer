@@ -7,22 +7,30 @@ export class CreateGroupUseCase {
   constructor(private readonly blockchain: IBlockchainService) {}
 
   async execute(dto: CreateGroupDto): Promise<{ groupId: bigint; result: TransactionResult }> {
-    let txHash: `0x${string}`;
+    const args: unknown[] = this.buildArgs(dto);
 
-    if (dto.admin && dto.merkleTreeDuration) {
-      txHash = await this.blockchain.writeContract("createGroup", [dto.admin, dto.merkleTreeDuration]);
-    } else if (dto.admin) {
-      txHash = await this.blockchain.writeContract("createGroup", [dto.admin]);
-    } else {
-      txHash = await this.blockchain.writeContract("createGroup", []);
-    }
+    // CRIT-01: groupId comes from the decoded return value of createGroup (single round-trip).
+    // No secondary readContract("groupCounter") call is needed.
+    const { hash, result: groupId } = await this.blockchain.writeContractWithResult<bigint>(
+      "createGroup",
+      args,
+    );
 
-    const receipt = await this.blockchain.waitForTransaction(txHash);
+    const receipt = await this.blockchain.waitForTransaction(hash);
     if (receipt.status !== "success") {
       throw new Error("Failed to create group");
     }
 
-    const groupCounter = await this.blockchain.readContract<bigint>("groupCounter", []);
-    return { groupId: groupCounter, result: mapReceiptToResult(receipt) };
+    return { groupId, result: mapReceiptToResult(receipt) };
+  }
+
+  private buildArgs(dto: CreateGroupDto): unknown[] {
+    if (dto.admin && dto.merkleTreeDuration) {
+      return [dto.admin, dto.merkleTreeDuration];
+    }
+    if (dto.admin) {
+      return [dto.admin];
+    }
+    return [];
   }
 }
