@@ -17,13 +17,13 @@ export const errorHandler = (err: Error, c: Context) => {
 
   if (err instanceof ZodError) {
     console.error(`[ZodError] Validation failed`);
+    const issues = err.issues.map((issue) => ({
+      field: issue.path.join("."),
+      message: issue.message,
+      code: issue.code,
+    }));
     return c.json(
-      ApiResponse.error("Validation error", {
-        details: err.flatten((e: any) => ({
-          field: e.path.join("."),
-          message: e.message,
-        })),
-      }),
+      ApiResponse.error("Validation error", { details: issues }),
       400,
     );
   }

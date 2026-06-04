@@ -1,10 +1,23 @@
 import { z } from "zod";
+import { getAddress } from "viem";
 
-const BigIntSchema = z.string().regex(/^\d+$/).transform(BigInt);
-const AddressSchema = z
+export const BigIntSchema = z
   .string()
-  .regex(/^0x[a-fA-F0-9]{40}$/)
-  .transform((val) => val as `0x${string}`);
+  .regex(/^\d+$/, "Must be a numeric string")
+  .max(78, "Exceeds uint256 max digits")
+  .transform((v) => BigInt(v));
+
+export const AddressSchema = z
+  .string()
+  .refine((v) => /^0x[a-fA-F0-9]{40}$/.test(v), "Invalid address format")
+  .transform((v, ctx) => {
+    try {
+      return getAddress(v);
+    } catch {
+      ctx.addIssue({ code: "custom", message: "Invalid EIP-55 checksum" });
+      return z.NEVER;
+    }
+  });
 
 const SemaphoreProofSchema = z.object({
   merkleTreeDepth: BigIntSchema,
@@ -56,7 +69,20 @@ export const VerifyProofSchema = z.object({
   proof: SemaphoreProofSchema,
 });
 
+export const UpdateGroupAdminSchema = z.object({
+  newAdmin: AddressSchema,
+});
+
+export const UpdateMerkleTreeDurationSchema = z.object({
+  newMerkleTreeDuration: BigIntSchema,
+});
+
 export const MemberQuerySchema = z.object({
+  groupId: BigIntSchema,
+  identityCommitment: BigIntSchema,
+});
+
+export const IndexOfQuerySchema = z.object({
   groupId: BigIntSchema,
   identityCommitment: BigIntSchema,
 });
