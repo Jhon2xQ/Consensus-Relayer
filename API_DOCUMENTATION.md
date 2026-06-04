@@ -1,41 +1,96 @@
 # API Documentation — Semaphore Relayer
 
-Documentación de la API REST del relayer Semaphore sobre Optimism. Sin eventos, sin SSE, sin auth. Validación de proofs on-chain con relay opcional a `RECORD_ENDPOINT`.
+REST API del Semaphore ZK Relayer sobre Optimism. Sin eventos, sin SSE, sin auth. Validación de proofs on-chain con relay opcional a `RECORD_ENDPOINT`.
+
+---
+
+## Tabla Resumen
+
+Base: `http://localhost:3000`
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/health` | Health check |
+| POST | `/api/semaphore/groups` | Crear grupo |
+| GET | `/api/semaphore/groups/counter` | Total de grupos creados |
+| GET | `/api/semaphore/groups/:groupId` | Info del grupo |
+| POST | `/api/semaphore/groups/:groupId/accept-admin` | Aceptar admin pendiente |
+| PUT | `/api/semaphore/groups/:groupId/admin` | Transferir admin |
+| PUT | `/api/semaphore/groups/:groupId/merkle-tree-duration` | Actualizar duración del merkle tree |
+| POST | `/api/semaphore/members` | Agregar miembro |
+| POST | `/api/semaphore/members/batch` | Agregar múltiples miembros |
+| DELETE | `/api/semaphore/members` | Eliminar miembro |
+| PUT | `/api/semaphore/members` | Actualizar commitment de miembro |
+| GET | `/api/semaphore/members/check` | Verificar si es miembro |
+| GET | `/api/semaphore/groups/:groupId/index-of` | Índice de un miembro dentro del merkle tree |
+| POST | `/api/semaphore/proofs/validate` | Validar proof on-chain (con tx) |
+| POST | `/api/semaphore/proofs/verify` | Verificar proof (read-only, sin gas) |
+| GET | `/api/semaphore/verifier` | Dirección del verificador |
 
 ---
 
 ## Formato de Respuesta
 
-Todas las respuestas usan el envelope `ApiResponse`:
+Todas las respuestas — exitosas o de error — usan el envelope `ApiResponse`:
 
 ```json
 {
   "success": true,
   "message": "Mensaje descriptivo",
-  "data": { ... },
+  "data": { },
   "timestamp": 1712000000000
 }
 ```
 
-Errores: `success: false`, `data: detalles según el tipo de error`.
+Campos:
+
+- `success`: `true` en éxito, `false` en error.
+- `message`: descripción humana del resultado.
+- `data`: payload. En éxito contiene el recurso; en error es `null` o contiene `details` (ver Errores).
+- `timestamp`: epoch en milisegundos (`Date.now()`).
 
 ---
 
 ## Endpoints
 
-Base: `http://localhost:3000/api/semaphore`
+### Health
+
+#### GET /health — 200
+
+Indica que el servicio está corriendo. No consulta la red.
+
+```json
+{
+  "success": true,
+  "message": "Service is healthy",
+  "data": {
+    "status": "ok",
+    "timestamp": "2026-06-04T15:00:00.000Z",
+    "contract": {
+      "type": "Semaphore",
+      "address": "0xabc...def"
+    }
+  },
+  "timestamp": 1712000000000
+}
+```
+
+---
 
 ### Grupos
 
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| POST | `/groups` | Crear grupo. Body: `{ admin?, merkleTreeDuration? }` |
-| GET | `/groups/counter` | Total de grupos creados |
-| GET | `/groups/:groupId` | Info del grupo (admin, depth, root, size, duration) |
-| POST | `/groups/:groupId/accept-admin` | Aceptar admin pendiente |
-| PUT | `/groups/:groupId/admin` | Transferir admin. Body: `{ newAdmin }` |
+Base: `/api/semaphore`
 
 #### POST /groups — 201
+
+Crea un grupo. `admin` y `merkleTreeDuration` son opcionales; si no se pasan, el admin se resuelve al address de la wallet configurada y `merkleTreeDuration` queda en `null`.
+
+Body:
+
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|-----------|-------------|
+| `admin` | string (address) | No | Address del admin. Si se omite, se usa `msg.sender`. |
+| `merkleTreeDuration` | string (uint256) | No | Duración en segundos. `null` si se omite. |
 
 ```json
 {
@@ -56,10 +111,15 @@ Base: `http://localhost:3000/api/semaphore`
 }
 ```
 
-- `admin`: la dirección enviada en el body, o `"msg.sender"` si no se envió.
-- `merkleTreeDuration`: `null` si no se especificó.
+Si `merkleTreeDuration` se omite, el campo queda explícitamente en `null`:
+
+```json
+"merkleTreeDuration": null
+```
 
 #### GET /groups/counter — 200
+
+Devuelve el contador de grupos. La lectura es del contador del contrato.
 
 ```json
 {
@@ -73,7 +133,12 @@ Base: `http://localhost:3000/api/semaphore`
 }
 ```
 
+- `totalGroups`: cantidad de grupos existentes (todos los groupIds `< totalGroups` están creados).
+- `nextGroupId`: el groupId que se asignará al próximo grupo creado. Idéntico a `totalGroups` porque la numeración es contigua desde 0.
+
 #### GET /groups/:groupId — 200
+
+Lee info on-chain del grupo. `merkleTreeDuration`/`merkleTreeDepth`/`merkleTreeRoot`/`merkleTreeSize` pueden ser `null` si el grupo todavía no inicializó su merkle tree.
 
 ```json
 {
@@ -93,6 +158,8 @@ Base: `http://localhost:3000/api/semaphore`
 
 #### POST /groups/:groupId/accept-admin — 200
 
+El `pendingAdmin` acepta la transferencia. El endpoint valida on-chain que el caller sea el `pendingAdmin` antes de broadcastear.
+
 ```json
 {
   "success": true,
@@ -100,7 +167,7 @@ Base: `http://localhost:3000/api/semaphore`
   "data": {
     "groupId": "1",
     "transaction": {
-      "txHash": "0xabc...123",
+      "hash": "0xabc...123",
       "blockNumber": "12345678",
       "gasUsed": "21000",
       "status": "success"
@@ -112,6 +179,14 @@ Base: `http://localhost:3000/api/semaphore`
 
 #### PUT /groups/:groupId/admin — 200
 
+Transfiere el admin. Body validado con `UpdateGroupAdminSchema` (address EIP-55).
+
+Body:
+
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|-----------|-------------|
+| `newAdmin` | string (address) | Sí | Address del nuevo admin. Checksum EIP-55. |
+
 ```json
 {
   "success": true,
@@ -120,7 +195,7 @@ Base: `http://localhost:3000/api/semaphore`
     "groupId": "1",
     "newAdmin": "0xdef...789",
     "transaction": {
-      "txHash": "0xabc...123",
+      "hash": "0xabc...123",
       "blockNumber": "12345678",
       "gasUsed": "21000",
       "status": "success"
@@ -130,19 +205,47 @@ Base: `http://localhost:3000/api/semaphore`
 }
 ```
 
+#### PUT /groups/:groupId/merkle-tree-duration — 200
+
+Actualiza la duración del merkle tree del grupo.
+
+Body:
+
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|-----------|-------------|
+| `newMerkleTreeDuration` | string (uint256) | Sí | Nueva duración en segundos. |
+
+```json
+{
+  "success": true,
+  "message": "Group merkle tree duration updated",
+  "data": {
+    "groupId": "1",
+    "newMerkleTreeDuration": "604800",
+    "transaction": {
+      "hash": "0xabc...123",
+      "blockNumber": "12345678",
+      "gasUsed": "21000",
+      "status": "success"
+    }
+  },
+  "timestamp": 1712000000000
+}
+```
+
+
 ---
 
 ### Miembros
 
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| POST | `/members` | Agregar miembro. Body: `{ groupId, identityCommitment }` |
-| POST | `/members/batch` | Agregar múltiples. Body: `{ groupId, identityCommitments[] }` |
-| DELETE | `/members` | Eliminar miembro. Body: `{ groupId, identityCommitment, merkleProofSiblings[] }` |
-| PUT | `/members` | Actualizar commitment. Body: `{ groupId, identityCommitment, newIdentityCommitment, merkleProofSiblings[] }` |
-| GET | `/members/check?groupId=&identityCommitment=` | Verificar si es miembro |
-
 #### POST /members — 201
+
+Body:
+
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|-----------|-------------|
+| `groupId` | string (uint256) | Sí | ID del grupo. |
+| `identityCommitment` | string (uint256) | Sí | Commitment del miembro. |
 
 ```json
 {
@@ -154,7 +257,8 @@ Base: `http://localhost:3000/api/semaphore`
     "transaction": {
       "hash": "0xabc...123",
       "blockNumber": 12345678,
-      "gasUsed": "21000"
+      "gasUsed": "21000",
+      "status": "success"
     }
   },
   "timestamp": 1712000000000
@@ -162,6 +266,13 @@ Base: `http://localhost:3000/api/semaphore`
 ```
 
 #### POST /members/batch — 201
+
+Body:
+
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|-----------|-------------|
+| `groupId` | string (uint256) | Sí | ID del grupo. |
+| `identityCommitments` | string[] (uint256) | Sí | Array de commitments. Vacío pasa validación pero revierte on-chain. |
 
 ```json
 {
@@ -178,7 +289,8 @@ Base: `http://localhost:3000/api/semaphore`
     "transaction": {
       "hash": "0xabc...123",
       "blockNumber": 12345678,
-      "gasUsed": "42000"
+      "gasUsed": "42000",
+      "status": "success"
     }
   },
   "timestamp": 1712000000000
@@ -186,6 +298,14 @@ Base: `http://localhost:3000/api/semaphore`
 ```
 
 #### DELETE /members — 200
+
+Body:
+
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|-----------|-------------|
+| `groupId` | string (uint256) | Sí | ID del grupo. |
+| `identityCommitment` | string (uint256) | Sí | Commitment a eliminar. |
+| `merkleProofSiblings` | string[] (uint256) | Sí | Siblings del merkle proof. |
 
 ```json
 {
@@ -195,7 +315,7 @@ Base: `http://localhost:3000/api/semaphore`
     "groupId": "1",
     "identityCommitment": "1234567890",
     "transaction": {
-      "txHash": "0xabc...123",
+      "hash": "0xabc...123",
       "blockNumber": "12345678",
       "gasUsed": "21000",
       "status": "success"
@@ -207,6 +327,15 @@ Base: `http://localhost:3000/api/semaphore`
 
 #### PUT /members — 200
 
+Body:
+
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|-----------|-------------|
+| `groupId` | string (uint256) | Sí | ID del grupo. |
+| `identityCommitment` | string (uint256) | Sí | Commitment actual. |
+| `newIdentityCommitment` | string (uint256) | Sí | Nuevo commitment. |
+| `merkleProofSiblings` | string[] (uint256) | Sí | Siblings del merkle proof. |
+
 ```json
 {
   "success": true,
@@ -216,7 +345,7 @@ Base: `http://localhost:3000/api/semaphore`
     "oldIdentityCommitment": "1234567890",
     "newIdentityCommitment": "9876543210",
     "transaction": {
-      "txHash": "0xabc...123",
+      "hash": "0xabc...123",
       "blockNumber": "12345678",
       "gasUsed": "21000",
       "status": "success"
@@ -226,7 +355,14 @@ Base: `http://localhost:3000/api/semaphore`
 }
 ```
 
-#### GET /members/check?groupId=1&identityCommitment=1234567890 — 200
+#### GET /members/check?groupId=&identityCommitment= — 200
+
+Query:
+
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|-----------|-------------|
+| `groupId` | string (uint256) | Sí | ID del grupo. |
+| `identityCommitment` | string (uint256) | Sí | Commitment a verificar. |
 
 ```json
 {
@@ -241,18 +377,45 @@ Base: `http://localhost:3000/api/semaphore`
 }
 ```
 
+#### GET /groups/:groupId/index-of?identityCommitment= — 200
+
+Devuelve el índice (0-based) de un miembro dentro del merkle tree del grupo. Si no es miembro, el contrato revierte.
+
+Query:
+
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|-----------|-------------|
+| `identityCommitment` | string (uint256) | Sí | Commitment a buscar. |
+
+```json
+{
+  "success": true,
+  "message": "Member index retrieved successfully",
+  "data": {
+    "groupId": "1",
+    "identityCommitment": "1234567890",
+    "index": "42"
+  },
+  "timestamp": 1712000000000
+}
+```
+
 ---
 
 ### Proofs
 
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| POST | `/proofs/validate` | Validar proof on-chain. Body: `{ groupId, proof }` |
-| POST | `/proofs/verify` | Verificar proof (read-only, sin gas). Body: `{ groupId, proof }` |
+`validate` ejecuta la tx on-chain. Si `RECORD_ENDPOINT` está configurado, relayea el resultado automáticamente (fire & forget — un fallo del relay no afecta la respuesta).
 
-`validate` ejecuta la tx on-chain. Si `RECORD_ENDPOINT` está configurado, relayea el resultado automáticamente (fire & forget).
+`verify` es read-only (no consume gas).
 
 #### POST /proofs/validate — 200
+
+Body:
+
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|-----------|-------------|
+| `groupId` | string (uint256) | Sí | ID del grupo. |
+| `proof` | object (SemaphoreProof) | Sí | Proof ZK. Ver sección `SemaphoreProof` más abajo. |
 
 ```json
 {
@@ -299,10 +462,6 @@ Nota: `/proofs/verify` solo devuelve los campos semánticos del proof (`nullifie
 
 ### Utilidades
 
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| GET | `/verifier` | Dirección del contrato verificador |
-
 #### GET /verifier — 200
 
 ```json
@@ -318,7 +477,7 @@ Nota: `/proofs/verify` solo devuelve los campos semánticos del proof (`nullifie
 
 ---
 
-## Proof (SemaphoreProof)
+## SemaphoreProof (proof como objeto)
 
 Todos los campos numéricos van como string (BigInt):
 
@@ -333,11 +492,13 @@ Todos los campos numéricos van como string (BigInt):
 }
 ```
 
+El proof SIEMPRE se manda como objeto, nunca aplanado a `proofNullifier`, `proofScope`, etc.
+
 ---
 
 ## Record Relay
 
-Al validar un proof exitosamente, si `RECORD_ENDPOINT` está configurado, se envía:
+Al validar un proof exitosamente, si `RECORD_ENDPOINT` está configurado, se envía un POST con:
 
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
@@ -345,9 +506,9 @@ Al validar un proof exitosamente, si `RECORD_ENDPOINT` está configurado, se env
 | nullifier | string | Nullifier del proof |
 | message | string | Mensaje del proof |
 | scope | string | Scope del proof |
-| transactionHash | string\|null | Hash de la tx on-chain |
+| transactionHash | string | Hash de la tx on-chain (siempre presente) |
 
-Endpoint idempotente por `nullifier`. El relay es fire & forget: si falla, el endpoint responde igual (la tx ya está minteada).
+El endpoint destino debe ser idempotente por `nullifier`. El relay es fire & forget: si falla, el endpoint responde igual (la tx ya está minteada).
 
 ---
 
@@ -355,29 +516,35 @@ Endpoint idempotente por `nullifier`. El relay es fire & forget: si falla, el en
 
 | Código | Condición | Respuesta |
 |--------|-----------|-----------|
-| 400 | Validation error (Zod) | `data.details` con fieldErrors |
-| 4xx | DomainException / HTTPException | `message` describe el error |
+| 400 | Validation error (Zod) | `data.details` con array de issues |
+| 400 | Path param inválido (no convertible a bigint) | `message` describe el error |
+| 4xx | `DomainException` / `HTTPException` | `message` describe el error |
 | 500 | Error interno | `message: "Internal server error"` |
 
 ### 400 — Validation Error (Zod)
+
+Todos los controllers usan el mismo formato de detalles. Cada item tiene `field` (path joined con `.`), `message` y `code`:
 
 ```json
 {
   "success": false,
   "message": "Validation error",
   "data": {
-    "details": {
-      "fieldErrors": {
-        "groupId": ["Expected string, received number"]
-      },
-      "formErrors": []
-    }
+    "details": [
+      {
+        "field": "newAdmin",
+        "message": "Invalid address format",
+        "code": "custom"
+      }
+    ]
   },
   "timestamp": 1712000000000
 }
 ```
 
-### 4xx — DomainException / HTTPException
+Si hay varios issues a la vez (por ejemplo body con varios campos inválidos), todos aparecen en el array `details`.
+
+### 4xx — DomainException / HTTPException / notFound
 
 ```json
 {
@@ -401,6 +568,15 @@ Endpoint idempotente por `nullifier`. El relay es fire & forget: si falla, el en
 
 ---
 
+## Convenciones de Shapes
+
+- **BigInts** se reciben/envían como strings (JSON no soporta BigInt nativo).
+- **Direcciones Ethereum**: `0x` + 40 caracteres hex, normalizadas a EIP-55 checksum en el output.
+- **Transacciones on-chain** devuelven siempre un objeto `transaction` con `hash` (no `txHash`), `blockNumber`, `gasUsed` y `status` (`"success"` o `"reverted"`).
+- **Path params numéricos** (`:groupId`, etc.) se validan con `parsePathParam` y un input inválido (no entero) devuelve 400, nunca 500.
+
+---
+
 ## Arquitectura
 
 ```
@@ -408,8 +584,8 @@ src/
 ├── domain/           Interfaces, tipos puros, excepciones
 ├── application/      Use-cases (uno por acción), DTOs
 ├── infrastructure/   BlockchainService, RecordRelayService
-├── presentation/     Controller, Zod schemas, middlewares
-├── common/           Config (env, blockchain, ABI, CORS), tipos globales
+├── presentation/     Controller, Zod schemas, middlewares (error-handler)
+├── common/           Helpers compartidos (responses, parse-path-param)
 ├── routes/           Rutas con wiring manual por constructor
 └── index.ts          Bootstrap
 ```
@@ -418,10 +594,20 @@ Sin DI containers, sin decoradores, sin `reflect-metadata`.
 
 ---
 
-## Notas
+## Breaking Changes
 
-- BigInts se reciben/envián como strings (JSON no soporta BigInt nativo)
-- Direcciones Ethereum: `0x` + 40 caracteres hex
-- Los endpoints de escritura requieren fondos para gas en la wallet configurada
-- `RECORD_ENDPOINT` es opcional; si no está configurado, el relay se saltea
-- El campo `transaction` en algunos endpoints incluye `status` (createGroup, validateProof, accept-admin, etc.) y en otros no (addMember, addMembers), según la semántica de cada operación
+Los siguientes cambios son **breaking** respecto a versiones anteriores. Clientes que dependan de las formas viejas deben migrar.
+
+| Cambio | Antes | Ahora | Impacto |
+|--------|-------|-------|---------|
+| Campo `txHash` | `transaction.txHash` | `transaction.hash` | Cualquier cliente que lea `txHash` se rompe. Renombrar a `hash`. |
+| `merkleTreeDuration` omitido | Campo ausente o `undefined` | Campo presente y explícitamente `null` | Clientes deben aceptar `null`, no `undefined`. |
+| `transaction.status` | Ausente en algunos endpoints (addMember, addMembers) | Siempre presente en endpoints de escritura | No es breaking estrictamente (campo nuevo), pero clientes que asuman forma fija deben ignorar campos extra. |
+| Error handler format | `data.details.fieldErrors` / `data.details.formErrors` (Zod 3 `flatten()`) | `data.details: Array<{ field, message, code }>` (Zod 4 `.issues`) | Clientes que parsean `data.details` deben migrar de objeto a array. |
+| `/health` response | Objeto crudo sin envelope | `ApiResponse` envelope con `success`/`message`/`data`/`timestamp` | Clientes que asuman `status` en la raíz deben leerlo desde `data.status`. |
+| `addMembers` con array vacío | `parse` rechazaba con 400 (`min(1)`) | Schema acepta, pero el contrato revierte on-chain | Clientes que mandaban `[]` ya no reciben 400 — el revert on-chain se propaga como 500/4xx. |
+| `validateProof` `transactionHash` en relay | `string \| null` | `string` (siempre presente) | Clientes del endpoint externo deben aceptar `string`, no `string \| null`. |
+
+### Recomendación de versionado
+
+Si tenés clientes en producción que no podés migrar de inmediato, exponé este relayer bajo un prefijo versionado (`/v2/...`) y mantené el viejo contrato hasta migrar. La ABI del contrato on-chain NO cambió, así que un cliente puede coexistir con ambas versiones de la API.

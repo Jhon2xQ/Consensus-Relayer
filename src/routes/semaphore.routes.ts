@@ -55,12 +55,14 @@ semaphoreRoutes.get("/groups/counter", controller.getGroupCounter);
 semaphoreRoutes.get("/groups/:groupId", controller.getGroupInfo);
 semaphoreRoutes.post("/groups/:groupId/accept-admin", controller.acceptGroupAdmin);
 semaphoreRoutes.put("/groups/:groupId/admin", controller.updateGroupAdmin);
+semaphoreRoutes.put("/groups/:groupId/merkle-tree-duration", controller.updateGroupMerkleTreeDuration);
 
 semaphoreRoutes.post("/members", controller.addMember);
 semaphoreRoutes.post("/members/batch", controller.addMembers);
 semaphoreRoutes.delete("/members", controller.removeMember);
 semaphoreRoutes.put("/members", controller.updateMember);
 semaphoreRoutes.get("/members/check", controller.hasMember);
+semaphoreRoutes.get("/groups/:groupId/index-of", controller.indexOf);
 
 semaphoreRoutes.post("/proofs/validate", controller.validateProof);
 semaphoreRoutes.post("/proofs/verify", controller.verifyProof);

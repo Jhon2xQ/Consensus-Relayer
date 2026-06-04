@@ -1,7 +1,7 @@
 import { DomainException } from "./domain.exception";
 
 export class SemaphoreException extends DomainException {
-  static groupNotFound(id: string): SemaphoreException {
+  static groupNotFound(id: bigint): SemaphoreException {
     return new SemaphoreException(`Group ${id} not found`, 404);
   }
 

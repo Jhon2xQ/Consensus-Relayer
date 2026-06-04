@@ -121,4 +121,48 @@ describe("CreateGroupUseCase (T12 — CRIT-01 fix)", () => {
     expect(typeof result.groupId).toBe("bigint");
     expect(result.groupId).toBe(12345n);
   });
+
+  it("resolves admin to dto.admin when provided (T38)", async () => {
+    blockchain = makeTestBlockchain({
+      writeContractWithResult: (async <T = unknown>() => ({ hash: TEST_HASH, result: 1n as T })) as IBlockchainService["writeContractWithResult"],
+    });
+    useCase = new CreateGroupUseCase(blockchain);
+
+    const result = await useCase.execute({ admin: ADMIN, merkleTreeDuration: 3600n });
+
+    expect(result.admin).toBe(ADMIN);
+  });
+
+  it("resolves admin to the wallet address when dto.admin is omitted (T38)", async () => {
+    blockchain = makeTestBlockchain({
+      writeContractWithResult: (async <T = unknown>() => ({ hash: TEST_HASH, result: 1n as T })) as IBlockchainService["writeContractWithResult"],
+    });
+    useCase = new CreateGroupUseCase(blockchain);
+
+    const result = await useCase.execute({ merkleTreeDuration: 3600n });
+
+    expect(result.admin).toBe(TEST_ADDRESS);
+  });
+
+  it("returns merkleTreeDuration as-is when provided (T38)", async () => {
+    blockchain = makeTestBlockchain({
+      writeContractWithResult: (async <T = unknown>() => ({ hash: TEST_HASH, result: 1n as T })) as IBlockchainService["writeContractWithResult"],
+    });
+    useCase = new CreateGroupUseCase(blockchain);
+
+    const result = await useCase.execute({ admin: ADMIN, merkleTreeDuration: 3600n });
+
+    expect(result.merkleTreeDuration).toBe(3600n);
+  });
+
+  it("returns merkleTreeDuration as null when omitted (CRIT-04 / T38)", async () => {
+    blockchain = makeTestBlockchain({
+      writeContractWithResult: (async <T = unknown>() => ({ hash: TEST_HASH, result: 1n as T })) as IBlockchainService["writeContractWithResult"],
+    });
+    useCase = new CreateGroupUseCase(blockchain);
+
+    const result = await useCase.execute({});
+
+    expect(result.merkleTreeDuration).toBeNull();
+  });
 });
