@@ -32,7 +32,7 @@ export class SemaphoreController {
         admin: dto.admin || "msg.sender",
         merkleTreeDuration: dto.merkleTreeDuration?.toString(),
         transaction: {
-          hash: result.result.txHash,
+          hash: result.result.hash,
           blockNumber: Number(result.result.blockNumber),
           gasUsed: result.result.gasUsed.toString(),
           status: result.result.status,
@@ -81,10 +81,10 @@ export class SemaphoreController {
       ApiResponse.success("Group info retrieved successfully", {
         id: info.id.toString(),
         admin: info.admin,
-        merkleTreeDuration: info.merkleTreeDuration.toString(),
-        merkleTreeDepth: Number(info.merkleTreeDepth),
-        merkleTreeRoot: info.merkleTreeRoot.toString(),
-        merkleTreeSize: info.merkleTreeSize.toString(),
+        merkleTreeDuration: info.merkleTreeDuration?.toString() ?? null,
+        merkleTreeDepth: info.merkleTreeDepth !== null ? Number(info.merkleTreeDepth) : null,
+        merkleTreeRoot: info.merkleTreeRoot?.toString() ?? null,
+        merkleTreeSize: info.merkleTreeSize?.toString() ?? null,
       }),
     );
   };
@@ -99,7 +99,7 @@ export class SemaphoreController {
         groupId: dto.groupId.toString(),
         identityCommitment: dto.identityCommitment.toString(),
         transaction: {
-          hash: result.txHash,
+          hash: result.hash,
           blockNumber: Number(result.blockNumber),
           gasUsed: result.gasUsed.toString(),
         },
@@ -119,7 +119,7 @@ export class SemaphoreController {
         count: dto.identityCommitments.length,
         identityCommitments: dto.identityCommitments.map((c: bigint) => c.toString()),
         transaction: {
-          hash: result.txHash,
+          hash: result.hash,
           blockNumber: Number(result.blockNumber),
           gasUsed: result.gasUsed.toString(),
         },
@@ -187,7 +187,7 @@ export class SemaphoreController {
         message: dto.proof.message.toString(),
         scope: dto.proof.scope.toString(),
         transaction: {
-          hash: result.txHash,
+          hash: result.hash,
           blockNumber: Number(result.blockNumber),
           gasUsed: result.gasUsed.toString(),
           status: result.status,

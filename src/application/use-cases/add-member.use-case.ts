@@ -9,6 +9,9 @@ export class AddMemberUseCase {
   async execute(dto: AddMemberDto): Promise<TransactionResult> {
     const txHash = await this.blockchain.writeContract("addMember", [dto.groupId, dto.identityCommitment]);
     const receipt = await this.blockchain.waitForTransaction(txHash);
+    if (receipt.status !== "success") {
+      throw new Error("addMember transaction reverted");
+    }
     return mapReceiptToResult(receipt);
   }
 }

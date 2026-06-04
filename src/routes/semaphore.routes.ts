@@ -9,6 +9,8 @@ import {
   UpdateMemberUseCase,
   AcceptGroupAdminUseCase,
   UpdateGroupAdminUseCase,
+  UpdateGroupMerkleTreeDurationUseCase,
+  IndexOfUseCase,
   ValidateProofUseCase,
   VerifyProofUseCase,
   GetGroupInfoUseCase,
@@ -32,12 +34,14 @@ const useCases: SemaphoreUseCases = {
   updateMember: new UpdateMemberUseCase(blockchain),
   acceptGroupAdmin: new AcceptGroupAdminUseCase(blockchain),
   updateGroupAdmin: new UpdateGroupAdminUseCase(blockchain),
+  updateGroupMerkleTreeDuration: new UpdateGroupMerkleTreeDurationUseCase(blockchain),
   validateProof: new ValidateProofUseCase(blockchain, recordRelay),
   verifyProof: new VerifyProofUseCase(blockchain),
   getGroupInfo: new GetGroupInfoUseCase(blockchain),
   getGroupCounter: new GetGroupCounterUseCase(blockchain),
   getVerifier: new GetVerifierUseCase(blockchain),
   hasMember: new HasMemberUseCase(blockchain),
+  indexOf: new IndexOfUseCase(blockchain),
 };
 
 // ── Presentation ──

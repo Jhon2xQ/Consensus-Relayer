@@ -14,6 +14,9 @@ export class UpdateMemberUseCase {
       dto.merkleProofSiblings,
     ]);
     const receipt = await this.blockchain.waitForTransaction(txHash);
+    if (receipt.status !== "success") {
+      throw new Error("updateMember transaction reverted");
+    }
     return mapReceiptToResult(receipt);
   }
 }
