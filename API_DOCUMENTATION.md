@@ -272,7 +272,7 @@ Body:
 | Campo | Tipo | Requerido | Descripción |
 |-------|------|-----------|-------------|
 | `groupId` | string (uint256) | Sí | ID del grupo. |
-| `identityCommitments` | string[] (uint256) | Sí | Array de commitments. Vacío = error 400 (el contrato también revierte). |
+| `identityCommitments` | string[] (uint256) | Sí | Array de commitments. Vacío pasa validación pero revierte on-chain. |
 
 ```json
 {
@@ -605,7 +605,7 @@ Los siguientes cambios son **breaking** respecto a versiones anteriores. Cliente
 | `transaction.status` | Ausente en algunos endpoints (addMember, addMembers) | Siempre presente en endpoints de escritura | No es breaking estrictamente (campo nuevo), pero clientes que asuman forma fija deben ignorar campos extra. |
 | Error handler format | `data.details.fieldErrors` / `data.details.formErrors` (Zod 3 `flatten()`) | `data.details: Array<{ field, message, code }>` (Zod 4 `.issues`) | Clientes que parsean `data.details` deben migrar de objeto a array. |
 | `/health` response | Objeto crudo sin envelope | `ApiResponse` envelope con `success`/`message`/`data`/`timestamp` | Clientes que asuman `status` en la raíz deben leerlo desde `data.status`. |
-| `addMembers` con array vacío | `parse` aceptaba array vacío | 400 con `details` indicando campo requerido | Clientes que mandaban `[]` ahora reciben error. |
+| `addMembers` con array vacío | `parse` rechazaba con 400 (`min(1)`) | Schema acepta, pero el contrato revierte on-chain | Clientes que mandaban `[]` ya no reciben 400 — el revert on-chain se propaga como 500/4xx. |
 | `validateProof` `transactionHash` en relay | `string \| null` | `string` (siempre presente) | Clientes del endpoint externo deben aceptar `string`, no `string \| null`. |
 
 ### Recomendación de versionado

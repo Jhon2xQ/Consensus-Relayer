@@ -43,7 +43,7 @@ export const AddMemberSchema = z.object({
 
 export const AddMembersSchema = z.object({
   groupId: BigIntSchema,
-  identityCommitments: z.array(BigIntSchema).min(1),
+  identityCommitments: z.array(BigIntSchema),
 });
 
 export const RemoveMemberSchema = z.object({

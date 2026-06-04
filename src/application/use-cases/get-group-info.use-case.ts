@@ -25,7 +25,7 @@ export class GetGroupInfoUseCase {
       admin = await this.blockchain.readContract<Address>("getGroupAdmin", [groupId]);
     } catch (err) {
       console.error(`[GetGroupInfoUseCase] group ${groupId} not found:`, err);
-      throw SemaphoreException.groupNotFound(groupId.toString());
+      throw SemaphoreException.groupNotFound(groupId);
     }
 
     // 2) Granular reads — each field may fail independently without breaking the rest.

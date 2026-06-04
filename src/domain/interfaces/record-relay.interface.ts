@@ -3,7 +3,7 @@ export interface RecordPayload {
   nullifier: string;
   message: string;
   scope: string;
-  transactionHash: string | null;
+  transactionHash: string;
 }
 
 export interface IRecordRelayService {
