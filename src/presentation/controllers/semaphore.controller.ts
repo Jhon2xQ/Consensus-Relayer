@@ -1,5 +1,4 @@
 import type { Context } from "hono";
-import { HTTPException } from "hono/http-exception";
 import type { SemaphoreUseCases } from "../../application/use-cases";
 import {
   CreateGroupSchema,
@@ -9,9 +8,13 @@ import {
   UpdateMemberSchema,
   ValidateProofSchema,
   VerifyProofSchema,
+  UpdateGroupAdminSchema,
+  UpdateMerkleTreeDurationSchema,
   MemberQuerySchema,
+  IndexOfQuerySchema,
 } from "../schemas/semaphore.schema";
-import { ApiResponse } from "../middlewares/api-response";
+import { ok, fail, formatZodIssues } from "../../common/responses";
+import { parsePathParam } from "../../common/parse-path-param";
 
 export class SemaphoreController {
   constructor(private readonly useCases: SemaphoreUseCases) {}
@@ -20,17 +23,13 @@ export class SemaphoreController {
     const body = await c.req.json();
     const dto = CreateGroupSchema.parse(body);
 
-    if (dto.admin && !/^0x[a-fA-F0-9]{40}$/.test(dto.admin)) {
-      throw new HTTPException(400, { message: "Invalid admin address format" });
-    }
-
     const result = await this.useCases.createGroup.execute(dto);
 
     return c.json(
-      ApiResponse.success("Group created successfully", {
+      ok("Group created successfully", {
         groupId: result.groupId.toString(),
-        admin: dto.admin || "msg.sender",
-        merkleTreeDuration: dto.merkleTreeDuration?.toString(),
+        admin: result.admin,
+        merkleTreeDuration: result.merkleTreeDuration === null ? null : result.merkleTreeDuration.toString(),
         transaction: {
           hash: result.result.hash,
           blockNumber: Number(result.result.blockNumber),
@@ -43,11 +42,11 @@ export class SemaphoreController {
   };
 
   acceptGroupAdmin = async (c: Context) => {
-    const groupId = BigInt(c.req.param("groupId")!);
+    const groupId = parsePathParam(c.req.param("groupId"), "groupId");
     const result = await this.useCases.acceptGroupAdmin.execute(groupId);
 
     return c.json(
-      ApiResponse.success("Group admin accepted", {
+      ok("Group admin accepted", {
         groupId: groupId.toString(),
         transaction: result,
       }),
@@ -55,30 +54,52 @@ export class SemaphoreController {
   };
 
   updateGroupAdmin = async (c: Context) => {
-    const groupId = BigInt(c.req.param("groupId")!);
+    const groupId = parsePathParam(c.req.param("groupId"), "groupId");
     const body = await c.req.json();
-
-    if (!body.newAdmin || !/^0x[a-fA-F0-9]{40}$/.test(body.newAdmin)) {
-      throw new HTTPException(400, { message: "Invalid newAdmin address" });
+    const parsed = UpdateGroupAdminSchema.safeParse(body);
+    if (!parsed.success) {
+      return c.json(fail("Validation error", { details: formatZodIssues(parsed.error) }), 400);
     }
 
-    const result = await this.useCases.updateGroupAdmin.execute(groupId, body.newAdmin);
+    const result = await this.useCases.updateGroupAdmin.execute(groupId, parsed.data.newAdmin);
 
     return c.json(
-      ApiResponse.success("Group admin updated", {
+      ok("Group admin updated", {
         groupId: groupId.toString(),
-        newAdmin: body.newAdmin,
+        newAdmin: parsed.data.newAdmin,
+        transaction: result,
+      }),
+    );
+  };
+
+  updateGroupMerkleTreeDuration = async (c: Context) => {
+    const groupId = parsePathParam(c.req.param("groupId"), "groupId");
+    const body = await c.req.json();
+    const parsed = UpdateMerkleTreeDurationSchema.safeParse(body);
+    if (!parsed.success) {
+      return c.json(fail("Validation error", { details: formatZodIssues(parsed.error) }), 400);
+    }
+
+    const result = await this.useCases.updateGroupMerkleTreeDuration.execute({
+      groupId,
+      newMerkleTreeDuration: parsed.data.newMerkleTreeDuration,
+    });
+
+    return c.json(
+      ok("Group merkle tree duration updated", {
+        groupId: groupId.toString(),
+        newMerkleTreeDuration: parsed.data.newMerkleTreeDuration.toString(),
         transaction: result,
       }),
     );
   };
 
   getGroupInfo = async (c: Context) => {
-    const groupId = BigInt(c.req.param("groupId")!);
+    const groupId = parsePathParam(c.req.param("groupId"), "groupId");
     const info = await this.useCases.getGroupInfo.execute(groupId);
 
     return c.json(
-      ApiResponse.success("Group info retrieved successfully", {
+      ok("Group info retrieved successfully", {
         id: info.id.toString(),
         admin: info.admin,
         merkleTreeDuration: info.merkleTreeDuration?.toString() ?? null,
@@ -95,13 +116,14 @@ export class SemaphoreController {
     const result = await this.useCases.addMember.execute(dto);
 
     return c.json(
-      ApiResponse.success("Member added to group", {
+      ok("Member added to group", {
         groupId: dto.groupId.toString(),
         identityCommitment: dto.identityCommitment.toString(),
         transaction: {
           hash: result.hash,
           blockNumber: Number(result.blockNumber),
           gasUsed: result.gasUsed.toString(),
+          status: result.status,
         },
       }),
       201,
@@ -114,14 +136,15 @@ export class SemaphoreController {
     const result = await this.useCases.addMembers.execute(dto);
 
     return c.json(
-      ApiResponse.success(`${dto.identityCommitments.length} members added to group`, {
+      ok(`${dto.identityCommitments.length} members added to group`, {
         groupId: dto.groupId.toString(),
         count: dto.identityCommitments.length,
-        identityCommitments: dto.identityCommitments.map((c: bigint) => c.toString()),
+        identityCommitments: dto.identityCommitments.map((ic: bigint) => ic.toString()),
         transaction: {
           hash: result.hash,
           blockNumber: Number(result.blockNumber),
           gasUsed: result.gasUsed.toString(),
+          status: result.status,
         },
       }),
       201,
@@ -134,7 +157,7 @@ export class SemaphoreController {
     const result = await this.useCases.removeMember.execute(dto);
 
     return c.json(
-      ApiResponse.success("Member removed from group", {
+      ok("Member removed from group", {
         groupId: dto.groupId.toString(),
         identityCommitment: dto.identityCommitment.toString(),
         transaction: result,
@@ -148,7 +171,7 @@ export class SemaphoreController {
     const result = await this.useCases.updateMember.execute(dto);
 
     return c.json(
-      ApiResponse.success("Member updated", {
+      ok("Member updated", {
         groupId: dto.groupId.toString(),
         oldIdentityCommitment: dto.identityCommitment.toString(),
         newIdentityCommitment: dto.newIdentityCommitment.toString(),
@@ -158,19 +181,38 @@ export class SemaphoreController {
   };
 
   hasMember = async (c: Context) => {
-    const query = c.req.query();
-    const dto = MemberQuerySchema.parse({
-      groupId: query.groupId,
-      identityCommitment: query.identityCommitment,
-    });
+    const parsed = MemberQuerySchema.safeParse(c.req.query());
+    if (!parsed.success) {
+      return c.json(fail("Validation error", { details: formatZodIssues(parsed.error) }), 400);
+    }
 
-    const hasMember = await this.useCases.hasMember.execute(dto.groupId, dto.identityCommitment);
+    const hasMember = await this.useCases.hasMember.execute(
+      parsed.data.groupId,
+      parsed.data.identityCommitment,
+    );
 
     return c.json(
-      ApiResponse.success("Member check completed", {
-        groupId: dto.groupId.toString(),
-        identityCommitment: dto.identityCommitment.toString(),
+      ok("Member check completed", {
+        groupId: parsed.data.groupId.toString(),
+        identityCommitment: parsed.data.identityCommitment.toString(),
         hasMember,
+      }),
+    );
+  };
+
+  indexOf = async (c: Context) => {
+    const parsed = IndexOfQuerySchema.safeParse(c.req.query());
+    if (!parsed.success) {
+      return c.json(fail("Validation error", { details: formatZodIssues(parsed.error) }), 400);
+    }
+
+    const result = await this.useCases.indexOf.execute(parsed.data);
+
+    return c.json(
+      ok("Member index retrieved successfully", {
+        groupId: result.groupId.toString(),
+        identityCommitment: result.identityCommitment.toString(),
+        index: result.index.toString(),
       }),
     );
   };
@@ -181,7 +223,7 @@ export class SemaphoreController {
     const result = await this.useCases.validateProof.execute(dto);
 
     return c.json(
-      ApiResponse.success("Proof validated on-chain", {
+      ok("Proof validated on-chain", {
         groupId: dto.groupId.toString(),
         nullifier: dto.proof.nullifier.toString(),
         message: dto.proof.message.toString(),
@@ -202,7 +244,7 @@ export class SemaphoreController {
     const isValid = await this.useCases.verifyProof.execute(dto);
 
     return c.json(
-      ApiResponse.success("Proof verification completed", {
+      ok("Proof verification completed", {
         groupId: dto.groupId.toString(),
         isValid,
         proof: {
@@ -218,7 +260,7 @@ export class SemaphoreController {
     const counter = await this.useCases.getGroupCounter.execute();
 
     return c.json(
-      ApiResponse.success("Group counter retrieved successfully", {
+      ok("Group counter retrieved successfully", {
         totalGroups: counter.toString(),
         nextGroupId: counter.toString(),
       }),
@@ -229,7 +271,7 @@ export class SemaphoreController {
     const verifier = await this.useCases.getVerifier.execute();
 
     return c.json(
-      ApiResponse.success("Verifier address retrieved successfully", {
+      ok("Verifier address retrieved successfully", {
         verifierAddress: verifier,
       }),
     );

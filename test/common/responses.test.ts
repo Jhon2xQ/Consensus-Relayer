@@ -50,13 +50,6 @@ describe("ApiResponse envelope", () => {
       expect(env.data).toEqual(details);
     });
 
-    it("accepts an optional HTTP status code as a 3rd argument", () => {
-      const env = fail("Server exploded", null, 500);
-
-      expect(env.success).toBe(false);
-      expect(env.message).toBe("Server exploded");
-    });
-
     it("includes a numeric timestamp", () => {
       const env = fail("nope");
 

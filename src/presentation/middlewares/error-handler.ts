@@ -2,32 +2,24 @@ import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { ZodError } from "zod";
 import { DomainException } from "../../domain/exceptions/domain.exception";
-import { ApiResponse } from "./api-response";
+import { fail, formatZodIssues } from "../../common/responses";
 
 export const errorHandler = (err: Error, c: Context) => {
   if (err instanceof DomainException) {
     console.error(`[${err.name}] ${err.statusCode}: ${err.message}`);
-    return c.json(ApiResponse.error(err.message), err.statusCode as any);
+    return c.json(fail(err.message), err.statusCode as any);
   }
 
   if (err instanceof HTTPException) {
     console.error(`[HTTPException] ${err.status}: ${err.message}`);
-    return c.json(ApiResponse.error(err.message), err.status);
+    return c.json(fail(err.message), err.status);
   }
 
   if (err instanceof ZodError) {
     console.error(`[ZodError] Validation failed`);
-    const issues = err.issues.map((issue) => ({
-      field: issue.path.join("."),
-      message: issue.message,
-      code: issue.code,
-    }));
-    return c.json(
-      ApiResponse.error("Validation error", { details: issues }),
-      400,
-    );
+    return c.json(fail("Validation error", { details: formatZodIssues(err) }), 400);
   }
 
   console.error(`[UnexpectedError]`, err);
-  return c.json(ApiResponse.error("Internal server error"), 500);
+  return c.json(fail("Internal server error"), 500);
 };
