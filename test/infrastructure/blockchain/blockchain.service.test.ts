@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, spyOn, afterEach } from "bun:test";
-import { publicClient, walletClient } from "../../configs/blockchain.config";
-import { BlockchainService } from "./blockchain.service";
+import { publicClient, walletClient } from "../../../src/configs/blockchain.config";
+import { BlockchainService } from "../../../src/infrastructure/blockchain/blockchain.service";
 
 const ADDR = "0x1234567890123456789012345678901234567890" as `0x${string}`;
 

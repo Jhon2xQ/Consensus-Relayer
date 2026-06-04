@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { ok, fail, notFound, type ApiResponse } from "./responses";
+import { ok, fail, notFound, type ApiResponse } from "../../src/common/responses";
 
 describe("ApiResponse envelope", () => {
   describe("ok()", () => {

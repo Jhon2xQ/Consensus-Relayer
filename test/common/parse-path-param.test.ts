@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
-import { parsePathParam } from "./parse-path-param";
-import { BadRequestException } from "../domain/exceptions/bad-request.exception";
+import { parsePathParam } from "../../src/common/parse-path-param";
+import { BadRequestException } from "../../src/domain/exceptions/bad-request.exception";
 
 describe("parsePathParam (T11)", () => {
   it("returns a bigint for a valid numeric string", () => {
