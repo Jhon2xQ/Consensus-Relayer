@@ -19,8 +19,15 @@ export const AddressSchema = z
     }
   });
 
+export const MerkleTreeDepthSchema = z
+  .number()
+  .int("Must be an integer")
+  .positive("Must be positive")
+  .max(256, "Max Merkle tree depth is 256")
+  .transform((v) => BigInt(v));
+
 const SemaphoreProofSchema = z.object({
-  merkleTreeDepth: BigIntSchema,
+  merkleTreeDepth: MerkleTreeDepthSchema,
   merkleTreeRoot: BigIntSchema,
   nullifier: BigIntSchema,
   message: BigIntSchema,

@@ -2,11 +2,39 @@ import { describe, it, expect } from "bun:test";
 import {
   BigIntSchema,
   AddressSchema,
+  MerkleTreeDepthSchema,
   UpdateGroupAdminSchema,
   MemberQuerySchema,
   UpdateMerkleTreeDurationSchema,
   IndexOfQuerySchema,
 } from "../../../src/presentation/schemas/semaphore.schema";
+
+describe("MerkleTreeDepthSchema (T3b)", () => {
+  it("accepts a number and transforms to bigint", () => {
+    const parsed = MerkleTreeDepthSchema.parse(20);
+    expect(parsed).toBe(20n);
+  });
+
+  it("rejects a float", () => {
+    expect(() => MerkleTreeDepthSchema.parse(20.5)).toThrow(/integer/i);
+  });
+
+  it("rejects zero", () => {
+    expect(() => MerkleTreeDepthSchema.parse(0)).toThrow(/positive/i);
+  });
+
+  it("rejects negative numbers", () => {
+    expect(() => MerkleTreeDepthSchema.parse(-1)).toThrow(/positive/i);
+  });
+
+  it("rejects values above 256", () => {
+    expect(() => MerkleTreeDepthSchema.parse(257)).toThrow(/256/i);
+  });
+
+  it("rejects a string (must be a number)", () => {
+    expect(() => MerkleTreeDepthSchema.parse("20")).toThrow();
+  });
+});
 
 describe("BigIntSchema (T4)", () => {
   it("transforms a numeric string to a bigint", () => {
