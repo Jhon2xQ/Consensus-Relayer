@@ -13,6 +13,7 @@ services:
       - RPC_URL=${RPC_URL}
       - PRIVATE_KEY=${PRIVATE_KEY}
       - CONTRACT_ADDRESS=${CONTRACT_ADDRESS}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5173}
       - RECORD_ENDPOINT=${RECORD_ENDPOINT}
     healthcheck:
       test: ["CMD", "bun", "run", "-e", "fetch('http://localhost:${PORT}/health').then(r => r.ok ? process.exit(0) : process.exit(1))"]
