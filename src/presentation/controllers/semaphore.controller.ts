@@ -217,7 +217,6 @@ export class SemaphoreController {
   validateProof = async (c: Context) => {
     const body = await c.req.json();
     const dto = ValidateProofSchema.parse(body);
-    console.log(dto);
     const result = await this.useCases.validateProof.execute(dto);
 
     return c.json(
