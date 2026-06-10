@@ -186,10 +186,7 @@ export class SemaphoreController {
       return c.json(fail("Validation error", { details: formatZodIssues(parsed.error) }), 400);
     }
 
-    const hasMember = await this.useCases.hasMember.execute(
-      parsed.data.groupId,
-      parsed.data.identityCommitment,
-    );
+    const hasMember = await this.useCases.hasMember.execute(parsed.data.groupId, parsed.data.identityCommitment);
 
     return c.json(
       ok("Member check completed", {
@@ -220,6 +217,7 @@ export class SemaphoreController {
   validateProof = async (c: Context) => {
     const body = await c.req.json();
     const dto = ValidateProofSchema.parse(body);
+    console.log(dto);
     const result = await this.useCases.validateProof.execute(dto);
 
     return c.json(

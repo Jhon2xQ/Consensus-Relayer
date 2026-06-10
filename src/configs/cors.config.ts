@@ -1,34 +1,12 @@
-import type { cors } from "hono/cors";
+import { cors } from "hono/cors";
 import { env } from "./env.config";
 
-export type OriginConfig = string | string[];
-
-export function parseOrigins(raw: string): OriginConfig {
-  if (raw === "*") return "*";
-  return raw
-    .split(",")
-    .map((o) => o.trim())
-    .filter(Boolean);
-}
-
-/**
- * Match a request origin against the allowed origins.
- * Returns the origin value to use in `Access-Control-Allow-Origin`,
- * or `null` if the origin is not allowed.
- */
-export function getAllowOrigin(requestOrigin: string, origins: OriginConfig): string | null {
-  if (origins === "*") return "*";
-  if (typeof origins === "string") return origins === requestOrigin ? origins : null;
-  return origins.includes(requestOrigin) ? requestOrigin : null;
-}
-
-const origins = parseOrigins(env.CORS_ORIGIN);
-
-export const corsConfig: Parameters<typeof cors>[0] = {
-  origin: origins,
-  allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+export const corsConfig = cors({
+  origin: (origin) => {
+    const allowed = env.CORS_ORIGIN.split(",").map((o) => o.trim());
+    return allowed.includes(origin) ? origin : null;
+  },
   allowHeaders: ["Content-Type", "Authorization"],
+  allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   credentials: true,
-  maxAge: 600,
-  exposeHeaders: ["Content-Length"],
-};
+});

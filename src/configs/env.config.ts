@@ -6,7 +6,7 @@ const envSchema = z.object({
   RPC_URL: z.string().url().min(1),
   PRIVATE_KEY: z.string().regex(/^0x[a-fA-F0-9]{64}$/, "Invalid private key format"),
   CONTRACT_ADDRESS: z.string().regex(/^0x[a-fA-F0-9]{40}$/, "Invalid contract address"),
-  CORS_ORIGIN: z.string().default("http://localhost:5173"),
+  CORS_ORIGIN: z.string().default("http://localhost:3000"),
   RECORD_ENDPOINT: z.string().url().optional(),
 });
 
