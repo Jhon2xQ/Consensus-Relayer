@@ -1,9 +1,12 @@
 import { describe, it, expect, beforeEach } from "bun:test";
+import { encodeAbiParameters, encodeEventTopics } from "viem";
+import { semaphoreAbi } from "../../../src/configs/semaphore.abi";
+import type { Log } from "viem";
 import { ValidateProofUseCase } from "../../../src/application/use-cases/validate-proof.use-case";
-import { makeTestBlockchain, makeTestReceipt, TEST_HASH, TEST_ADDRESS } from "./helpers";
+import { makeTestBlockchain, makeTestReceipt, TEST_ADDRESS, TEST_HASH } from "./helpers";
 import type { IBlockchainService } from "../../../src/domain/interfaces/blockchain-service.interface";
 import type { IRecordRelayService } from "../../../src/domain/interfaces/record-relay.interface";
-import type { SemaphoreProof } from "../../../src/domain/types/semaphore.types";
+import type { ProofValidatedEventArgs, SemaphoreProof } from "../../../src/domain/types/semaphore.types";
 
 function makeProof(): SemaphoreProof {
   return {
@@ -13,6 +16,47 @@ function makeProof(): SemaphoreProof {
     message: 456n,
     scope: 789n,
     points: [0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n],
+  };
+}
+
+function makeProofValidatedEvent(): ProofValidatedEventArgs {
+  return {
+    groupId: 10n,
+    merkleTreeDepth: 20n,
+    merkleTreeRoot: 2n,
+    nullifier: 321n,
+    message: 654n,
+    scope: 987n,
+    points: [1n, 2n, 3n, 4n, 5n, 6n, 7n, 8n],
+  };
+}
+
+function makeProofValidatedLog(eventArgs: ProofValidatedEventArgs): Log {
+  const topics = encodeEventTopics({
+    abi: semaphoreAbi,
+    eventName: "ProofValidated",
+    args: [eventArgs.groupId, eventArgs.merkleTreeRoot, eventArgs.scope],
+  });
+  const data = encodeAbiParameters(
+    [
+      { type: "uint256" },
+      { type: "uint256" },
+      { type: "uint256" },
+      { type: "uint256[8]" },
+    ],
+    [eventArgs.merkleTreeDepth, eventArgs.nullifier, eventArgs.message, eventArgs.points],
+  );
+
+  return {
+    address: TEST_ADDRESS,
+    blockHash: "0x" + "b".repeat(64) as `0x${string}`,
+    blockNumber: 100n,
+    data,
+    logIndex: 0,
+    removed: false,
+    topics,
+    transactionHash: TEST_HASH,
+    transactionIndex: 0,
   };
 }
 
@@ -57,7 +101,7 @@ describe("ValidateProofUseCase (T19 — response shape)", () => {
   it("returns a result with hash and status: 'success' on a successful transaction", async () => {
     blockchain = makeTestBlockchain({
       writeContract: (async () => TEST_HASH) as IBlockchainService["writeContract"],
-      waitForTransaction: (async () => makeTestReceipt("success")) as IBlockchainService["waitForTransaction"],
+      waitForTransaction: (async () => makeTestReceipt("success", [])) as IBlockchainService["waitForTransaction"],
     });
     useCase = new ValidateProofUseCase(blockchain, recordRelay);
 
@@ -69,10 +113,36 @@ describe("ValidateProofUseCase (T19 — response shape)", () => {
     expect(result.gasUsed).toBe(21_000n);
   });
 
+  it("returns the parsed ProofValidated event from receipt logs", async () => {
+    const eventArgs = makeProofValidatedEvent();
+    blockchain = makeTestBlockchain({
+      writeContract: (async () => TEST_HASH) as IBlockchainService["writeContract"],
+      waitForTransaction: (async () =>
+        makeTestReceipt("success", [makeProofValidatedLog(eventArgs)])) as IBlockchainService["waitForTransaction"],
+    });
+    useCase = new ValidateProofUseCase(blockchain, recordRelay);
+
+    const result = await useCase.execute({ groupId: 1n, proof: makeProof() });
+
+    expect(result.event).toEqual(eventArgs);
+  });
+
+  it("returns no event when a successful receipt has no ProofValidated log", async () => {
+    blockchain = makeTestBlockchain({
+      writeContract: (async () => TEST_HASH) as IBlockchainService["writeContract"],
+      waitForTransaction: (async () => makeTestReceipt("success", [])) as IBlockchainService["waitForTransaction"],
+    });
+    useCase = new ValidateProofUseCase(blockchain, recordRelay);
+
+    const result = await useCase.execute({ groupId: 1n, proof: makeProof() });
+
+    expect(result.event).toBeUndefined();
+  });
+
   it("returns status: 'reverted' (no throw) so the controller can include it in the response", async () => {
     blockchain = makeTestBlockchain({
       writeContract: (async () => TEST_HASH) as IBlockchainService["writeContract"],
-      waitForTransaction: (async () => makeTestReceipt("reverted")) as IBlockchainService["waitForTransaction"],
+      waitForTransaction: (async () => makeTestReceipt("reverted", [])) as IBlockchainService["waitForTransaction"],
     });
     useCase = new ValidateProofUseCase(blockchain, recordRelay);
 
@@ -84,7 +154,7 @@ describe("ValidateProofUseCase (T19 — response shape)", () => {
   it("relays the validated record when the receipt is successful", async () => {
     blockchain = makeTestBlockchain({
       writeContract: (async () => TEST_HASH) as IBlockchainService["writeContract"],
-      waitForTransaction: (async () => makeTestReceipt("success")) as IBlockchainService["waitForTransaction"],
+      waitForTransaction: (async () => makeTestReceipt("success", [])) as IBlockchainService["waitForTransaction"],
     });
     useCase = new ValidateProofUseCase(blockchain, recordRelay);
 
@@ -102,10 +172,33 @@ describe("ValidateProofUseCase (T19 — response shape)", () => {
     expect(record.transactionHash).toBe(TEST_HASH);
   });
 
+  it("relays the validated record using ProofValidated event args when available", async () => {
+    const eventArgs = makeProofValidatedEvent();
+    blockchain = makeTestBlockchain({
+      writeContract: (async () => TEST_HASH) as IBlockchainService["writeContract"],
+      waitForTransaction: (async () =>
+        makeTestReceipt("success", [makeProofValidatedLog(eventArgs)])) as IBlockchainService["waitForTransaction"],
+    });
+    useCase = new ValidateProofUseCase(blockchain, recordRelay);
+
+    await useCase.execute({ groupId: 1n, proof: makeProof() });
+
+    // recordRelay.send is async but fire-and-forget — wait a tick
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(recordRelay.sent).toHaveLength(1);
+    const record = recordRelay.sent[0] as Record<string, unknown>;
+    expect(record.groupId).toBe("10");
+    expect(record.nullifier).toBe("321");
+    expect(record.message).toBe("654");
+    expect(record.scope).toBe("987");
+    expect(record.transactionHash).toBe(TEST_HASH);
+  });
+
   it("does NOT relay the record when the receipt is reverted", async () => {
     blockchain = makeTestBlockchain({
       writeContract: (async () => TEST_HASH) as IBlockchainService["writeContract"],
-      waitForTransaction: (async () => makeTestReceipt("reverted")) as IBlockchainService["waitForTransaction"],
+      waitForTransaction: (async () => makeTestReceipt("reverted", [])) as IBlockchainService["waitForTransaction"],
     });
     useCase = new ValidateProofUseCase(blockchain, recordRelay);
 

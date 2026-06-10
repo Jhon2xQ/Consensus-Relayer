@@ -231,6 +231,17 @@ export class SemaphoreController {
           gasUsed: result.gasUsed.toString(),
           status: result.status,
         },
+        event: result.event
+          ? {
+              groupId: result.event.groupId.toString(),
+              merkleTreeDepth: result.event.merkleTreeDepth.toString(),
+              merkleTreeRoot: result.event.merkleTreeRoot.toString(),
+              nullifier: result.event.nullifier.toString(),
+              message: result.event.message.toString(),
+              scope: result.event.scope.toString(),
+              points: result.event.points.map((point) => point.toString()),
+            }
+          : null,
       }),
     );
   };

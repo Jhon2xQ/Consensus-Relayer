@@ -1,8 +1,30 @@
+import { parseEventLogs } from "viem";
+import type { TransactionReceipt } from "viem";
+import { semaphoreAbi } from "../../configs/semaphore.abi";
 import type { IBlockchainService } from "../../domain/interfaces/blockchain-service.interface";
 import type { IRecordRelayService } from "../../domain/interfaces/record-relay.interface";
-import type { ValidateProofDto } from "../dtos/semaphore.dto";
+import type { ProofValidatedEventArgs } from "../../domain/types/semaphore.types";
 import type { TransactionResult } from "../../domain/types/semaphore.types";
+import type { ValidateProofDto } from "../dtos/semaphore.dto";
 import { mapReceiptToResult } from "./helpers";
+
+function parseProofValidatedEvent(receipt: TransactionReceipt): ProofValidatedEventArgs | undefined {
+  if (receipt.status !== "success" || receipt.logs.length === 0) {
+    return undefined;
+  }
+
+  try {
+    const [proofEvent] = parseEventLogs<typeof semaphoreAbi, true, "ProofValidated">({
+      abi: semaphoreAbi,
+      eventName: "ProofValidated",
+      logs: receipt.logs,
+    });
+
+    return proofEvent?.args;
+  } catch {
+    return undefined;
+  }
+}
 
 export class ValidateProofUseCase {
   constructor(
@@ -13,15 +35,16 @@ export class ValidateProofUseCase {
   async execute(dto: ValidateProofDto): Promise<TransactionResult> {
     const txHash = await this.blockchain.writeContract("validateProof", [dto.groupId, dto.proof]);
     const receipt = await this.blockchain.waitForTransaction(txHash);
+    const eventArgs = parseProofValidatedEvent(receipt);
 
     // After successful validation, relay the record to the external endpoint
     if (receipt.status === "success") {
       this.recordRelay
         .send({
-          groupId: dto.groupId.toString(),
-          nullifier: dto.proof.nullifier.toString(),
-          message: dto.proof.message.toString(),
-          scope: dto.proof.scope.toString(),
+          groupId: (eventArgs?.groupId ?? dto.groupId).toString(),
+          nullifier: (eventArgs?.nullifier ?? dto.proof.nullifier).toString(),
+          message: (eventArgs?.message ?? dto.proof.message).toString(),
+          scope: (eventArgs?.scope ?? dto.proof.scope).toString(),
           transactionHash: receipt.transactionHash,
         })
         .catch((err) => {
@@ -29,6 +52,6 @@ export class ValidateProofUseCase {
         });
     }
 
-    return mapReceiptToResult(receipt);
+    return mapReceiptToResult(receipt, eventArgs);
   }
 }

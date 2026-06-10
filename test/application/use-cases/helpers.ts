@@ -6,12 +6,14 @@ export const TEST_HASH: Hash = "0xfeedfacefeedfacefeedfacefeedfacefeedface" as H
 
 export function makeTestReceipt(
   status: "success" | "reverted" = "success",
+  logs: TransactionReceipt["logs"] = [],
 ): TransactionReceipt {
   return {
     transactionHash: TEST_HASH,
     blockNumber: 100n,
     gasUsed: 21_000n,
     status,
+    logs,
   } as unknown as TransactionReceipt;
 }
 
