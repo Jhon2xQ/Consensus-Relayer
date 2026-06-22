@@ -6,7 +6,7 @@ services:
     container_name: semaphore-relayer
     restart: unless-stopped
     ports:
-      - "${PORT}"
+      - "${PORT}:${PORT}"
     environment:
       - NODE_ENV=${NODE_ENV}
       - PORT=${PORT}
@@ -16,7 +16,14 @@ services:
       - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5173}
       - RECORD_ENDPOINT=${RECORD_ENDPOINT}
     healthcheck:
-      test: ["CMD", "bun", "run", "-e", "fetch('http://localhost:${PORT}/health').then(r => r.ok ? process.exit(0) : process.exit(1))"]
+      test:
+        [
+          "CMD",
+          "bun",
+          "run",
+          "-e",
+          "fetch('http://localhost:${PORT}/health').then(r => r.ok ? process.exit(0) : process.exit(1))",
+        ]
       interval: 30s
       timeout: 3s
       retries: 3
